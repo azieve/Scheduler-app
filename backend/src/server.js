@@ -7,6 +7,7 @@ const winston = require('winston');
 const session = require('express-session');
 const cookieParser = require('cookie-parser');
 const passport = require('./config/passport');
+const { testConnection } = require('./config/database');
 
 const logger = winston.createLogger({
   level: 'info',
@@ -95,9 +96,12 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   logger.info(`Server running on port ${PORT}`);
   console.log(`🚀 Server running on http://localhost:${PORT}`);
+  
+  // Test database connection
+  await testConnection();
 });
 
 module.exports = { app, server };

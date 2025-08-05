@@ -1,6 +1,7 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const { google } = require('googleapis');
+const User = require('../models/User');
 
 passport.serializeUser((user, done) => {
   done(null, user.id);
@@ -8,10 +9,7 @@ passport.serializeUser((user, done) => {
 
 passport.deserializeUser(async (id, done) => {
   try {
-    // TODO: Replace with actual database lookup
-    // const user = await User.findById(id);
-    // For now, return a mock user
-    const user = { id, email: 'temp@example.com' };
+    const user = await User.findById(id);
     done(null, user);
   } catch (error) {
     done(error, null);
@@ -34,39 +32,25 @@ passport.use(
           picture: profile.photos[0]?.value
         });
 
-        // TODO: Replace with actual database operations
         // Check if user exists
-        // let user = await User.findOne({ googleId: profile.id });
+        let user = await User.findByGoogleId(profile.id);
         
-        // if (!user) {
-        //   // Create new user
-        //   user = await User.create({
-        //     googleId: profile.id,
-        //     email: profile.emails[0]?.value,
-        //     firstName: profile.name?.givenName,
-        //     lastName: profile.name?.familyName,
-        //     profilePicture: profile.photos[0]?.value,
-        //     googleAccessToken: accessToken,
-        //     googleRefreshToken: refreshToken,
-        //   });
-        // } else {
-        //   // Update existing user tokens
-        //   user.googleAccessToken = accessToken;
-        //   if (refreshToken) user.googleRefreshToken = refreshToken;
-        //   await user.save();
-        // }
-
-        // Mock user for now
-        const user = {
-          id: profile.id,
-          googleId: profile.id,
-          email: profile.emails[0]?.value,
-          firstName: profile.name?.givenName,
-          lastName: profile.name?.familyName,
-          profilePicture: profile.photos[0]?.value,
-          googleAccessToken: accessToken,
-          googleRefreshToken: refreshToken,
-        };
+        if (!user) {
+          // Create new user
+          user = await User.create({
+            googleId: profile.id,
+            email: profile.emails[0]?.value,
+            firstName: profile.name?.givenName,
+            lastName: profile.name?.familyName,
+            googleAccessToken: accessToken,
+            googleRefreshToken: refreshToken,
+          });
+          console.log('✅ New user created:', user.email);
+        } else {
+          // Update existing user tokens
+          await user.updateGoogleTokens(accessToken, refreshToken);
+          console.log('✅ Existing user tokens updated:', user.email);
+        }
 
         return done(null, user);
       } catch (error) {

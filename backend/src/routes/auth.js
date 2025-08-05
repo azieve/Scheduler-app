@@ -47,14 +47,22 @@ router.get('/google/callback',
 );
 
 // Get current user
-router.get('/me', authenticateToken, (req, res) => {
-  res.json({
-    user: {
-      id: req.user.id,
-      email: req.user.email,
-      // Add more user fields as needed
+router.get('/me', authenticateToken, async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
     }
-  });
+
+    res.json({
+      user: user.toJSON()
+    });
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ error: 'Failed to fetch user data' });
+  }
 });
 
 // Logout
