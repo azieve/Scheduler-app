@@ -5,6 +5,7 @@ class User {
   constructor(data) {
     this.id = data.id;
     this.email = data.email;
+    this.username = data.username;
     this.firstName = data.first_name;
     this.lastName = data.last_name;
     this.googleId = data.google_id;
@@ -74,6 +75,53 @@ class User {
     }
   }
 
+  // Find user by username
+  static async findByUsername(username) {
+    try {
+      const result = await query(
+        'SELECT * FROM users WHERE username = $1',
+        [username]
+      );
+      
+      if (result.rows.length === 0) {
+        return null;
+      }
+      
+      return new User(result.rows[0]);
+    } catch (error) {
+      console.error('Error finding user by username:', error);
+      throw error;
+    }
+  }
+
+  // Generate username from email
+  static generateUsername(email) {
+    return email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  // Check if username is available
+  static async isUsernameAvailable(username, excludeId = null) {
+    try {
+      const params = [username];
+      let whereClause = 'WHERE username = $1';
+      
+      if (excludeId) {
+        whereClause += ' AND id != $2';
+        params.push(excludeId);
+      }
+      
+      const result = await query(
+        `SELECT id FROM users ${whereClause}`,
+        params
+      );
+      
+      return result.rows.length === 0;
+    } catch (error) {
+      console.error('Error checking username availability:', error);
+      throw error;
+    }
+  }
+
   // Create new user
   static async create(userData) {
     try {
@@ -87,15 +135,26 @@ class User {
         timezone = 'UTC'
       } = userData;
 
+      // Generate unique username
+      let baseUsername = this.generateUsername(email);
+      let username = baseUsername;
+      let counter = 1;
+      
+      while (!(await this.isUsernameAvailable(username))) {
+        username = `${baseUsername}${counter}`;
+        counter++;
+      }
+
       const result = await query(
         `INSERT INTO users (
-          email, first_name, last_name, google_id, 
+          email, username, first_name, last_name, google_id, 
           google_access_token, google_refresh_token, timezone, 
           is_verified, is_active
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
         RETURNING *`,
         [
           email,
+          username,
           firstName,
           lastName,
           googleId,
@@ -182,6 +241,7 @@ class User {
     return {
       id: this.id,
       email: this.email,
+      username: this.username,
       firstName: this.firstName,
       lastName: this.lastName,
       fullName: this.getFullName(),

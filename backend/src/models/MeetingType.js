@@ -226,13 +226,16 @@ class MeetingType {
     }
   }
 
-  // Get booking URL
-  getBookingUrl(baseUrl = 'http://localhost:3000') {
-    return `${baseUrl}/book/${this.publicSlug}`;
+  // Get booking URL (requires user object)
+  getBookingUrl(user, baseUrl = 'http://localhost:3000') {
+    if (!user || !user.username) {
+      return `${baseUrl}/book/[username]/${this.publicSlug}`;
+    }
+    return `${baseUrl}/${user.username}/${this.publicSlug}`;
   }
 
-  // Convert to JSON
-  toJSON() {
+  // Convert to JSON (requires user object for booking URL)
+  toJSON(user = null) {
     return {
       id: this.id,
       userId: this.userId,
@@ -246,7 +249,7 @@ class MeetingType {
       location: this.location,
       meetingLink: this.meetingLink,
       color: this.color,
-      bookingUrl: this.getBookingUrl(),
+      bookingUrl: this.getBookingUrl(user),
       createdAt: this.createdAt,
       updatedAt: this.updatedAt
     };

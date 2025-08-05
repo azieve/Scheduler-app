@@ -26,6 +26,9 @@ router.get('/', authenticateToken, async (req, res) => {
   try {
     const { includeInactive = false } = req.query;
     
+    const User = require('../models/User');
+    const user = await User.findById(req.user.id);
+    
     const meetingTypes = await MeetingType.findByUserId(
       req.user.id, 
       includeInactive === 'true'
@@ -34,7 +37,7 @@ router.get('/', authenticateToken, async (req, res) => {
     res.json({
       success: true,
       data: {
-        meetingTypes: meetingTypes.map(mt => mt.toJSON()),
+        meetingTypes: meetingTypes.map(mt => mt.toJSON(user)),
         count: meetingTypes.length
       }
     });
@@ -68,10 +71,13 @@ router.get('/:id', authenticateToken, async (req, res) => {
         error: 'Access denied'
       });
     }
+
+    const User = require('../models/User');
+    const user = await User.findById(req.user.id);
     
     res.json({
       success: true,
-      data: meetingType.toJSON()
+      data: meetingType.toJSON(user)
     });
   } catch (error) {
     console.error('Error fetching meeting type:', error);
@@ -159,10 +165,13 @@ router.post('/', authenticateToken, async (req, res) => {
       meetingLink: meetingLink?.trim() || '',
       color: color || '#4285F4'
     });
+
+    const User = require('../models/User');
+    const user = await User.findById(req.user.id);
     
     res.status(201).json({
       success: true,
-      data: meetingType.toJSON()
+      data: meetingType.toJSON(user)
     });
   } catch (error) {
     console.error('Error creating meeting type:', error);
@@ -220,9 +229,12 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     const updatedMeetingType = await meetingType.update(updateData);
     
+    const User = require('../models/User');
+    const user = await User.findById(req.user.id);
+    
     res.json({
       success: true,
-      data: updatedMeetingType.toJSON()
+      data: updatedMeetingType.toJSON(user)
     });
   } catch (error) {
     console.error('Error updating meeting type:', error);

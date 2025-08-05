@@ -83,9 +83,11 @@ app.get('/api', (req, res) => {
 const authRoutes = require('./routes/auth');
 const calendarRoutes = require('./routes/calendar');
 const meetingTypesRoutes = require('./routes/meetingTypes');
+const bookingRoutes = require('./routes/booking');
 app.use('/api/auth', authRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/meeting-types', meetingTypesRoutes);
+app.use('/api/book', bookingRoutes);
 
 app.use((err, req, res, next) => {
   logger.error(err.stack);
