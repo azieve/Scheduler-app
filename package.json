@@ -1,0 +1,40 @@
+{
+  "name": "scheduler-app",
+  "version": "1.0.0",
+  "description": "A comprehensive scheduling application similar to Calendly",
+  "private": true,
+  "scripts": {
+    "dev": "./dev.sh",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm start",
+    "dev:backend-only": "cd backend && npm run dev",
+    "dev:frontend-only": "cd frontend && npm start",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && npm test",
+    "test:frontend": "cd frontend && npm test -- --coverage --watchAll=false",
+    "test:watch": "npx concurrently \"npm run test:backend -- --watch\" \"npm run test:frontend\"",
+    "db:up": "docker-compose up -d postgres redis",
+    "db:down": "docker-compose down",
+    "db:reset": "docker-compose down -v && docker-compose up -d postgres redis",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:frontend": "cd frontend && npm run lint",
+    "start": "npx concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "cd backend && npm start",
+    "start:frontend": "cd frontend && npm run build && npx serve -s frontend/build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0",
+    "serve": "^14.2.0"
+  },
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
