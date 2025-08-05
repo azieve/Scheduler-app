@@ -150,6 +150,9 @@ const Dashboard: React.FC = () => {
           <h1>Welcome to ReadyToMeet.me</h1>
           <div className="user-info">
             <span>👋 {user?.email}</span>
+            <a href="/meeting-types" className="nav-link">
+              Meeting Types
+            </a>
             <button onClick={handleLogout} className="logout-btn">
               Logout
             </button>
@@ -286,6 +289,7 @@ const Dashboard: React.FC = () => {
             <div className="step">
               <h4>2. Create Meeting Types</h4>
               <p>Configure your scheduling preferences</p>
+              <a href="/meeting-types" className="step-link">Go to Meeting Types →</a>
             </div>
             <div className="step">
               <h4>3. Generate Booking Links</h4>

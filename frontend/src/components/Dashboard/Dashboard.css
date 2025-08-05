@@ -36,6 +36,19 @@
   font-size: 16px;
 }
 
+.nav-link {
+  color: #4285f4;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.nav-link:hover {
+  color: #3367d6;
+  text-decoration: underline;
+}
+
 .logout-btn {
   background: #ff4757;
   color: white;
@@ -178,9 +191,20 @@
 }
 
 .step p {
-  margin: 0;
+  margin: 0 0 8px;
   color: #666;
   font-size: 14px;
+}
+
+.step-link {
+  color: #4285f4;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.step-link:hover {
+  text-decoration: underline;
 }
 
 .loading {
