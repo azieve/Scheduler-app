@@ -13,6 +13,10 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [calendarTest, setCalendarTest] = useState<any>(null);
+  const [calendars, setCalendars] = useState<any[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
+  const [loadingCalendars, setLoadingCalendars] = useState(false);
+  const [loadingEvents, setLoadingEvents] = useState(false);
 
   useEffect(() => {
     // Check URL params for auth success
@@ -57,6 +61,49 @@ const Dashboard: React.FC = () => {
     } catch (err) {
       setCalendarTest({ error: 'Failed to test calendar access' });
       console.error('Calendar test error:', err);
+    }
+  };
+
+  const fetchCalendars = async () => {
+    try {
+      setLoadingCalendars(true);
+      const response = await fetch('http://localhost:3001/api/calendar/calendars', {
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCalendars(data.data.calendars);
+      } else {
+        console.error('Failed to fetch calendars');
+      }
+    } catch (err) {
+      console.error('Calendar fetch error:', err);
+    } finally {
+      setLoadingCalendars(false);
+    }
+  };
+
+  const fetchEvents = async (calendarId = 'primary') => {
+    try {
+      setLoadingEvents(true);
+      const response = await fetch(
+        `http://localhost:3001/api/calendar/events?calendarId=${calendarId}&maxResults=10`,
+        {
+          credentials: 'include'
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setEvents(data.data.events);
+      } else {
+        console.error('Failed to fetch events');
+      }
+    } catch (err) {
+      console.error('Events fetch error:', err);
+    } finally {
+      setLoadingEvents(false);
     }
   };
 
@@ -162,11 +209,79 @@ const Dashboard: React.FC = () => {
         </div>
 
         <div className="dashboard-card">
+          <h2>📅 Your Calendars</h2>
+          <p>Manage your connected Google calendars:</p>
+          
+          <button 
+            onClick={fetchCalendars} 
+            className="test-btn"
+            disabled={loadingCalendars}
+          >
+            {loadingCalendars ? 'Loading...' : 'Load Calendars'}
+          </button>
+
+          {calendars.length > 0 && (
+            <div className="calendar-list">
+              <h4>Found {calendars.length} calendars:</h4>
+              <ul>
+                {calendars.map((cal: any) => (
+                  <li key={cal.id} className="calendar-item">
+                    <div>
+                      <strong>{cal.summary}</strong>
+                      {cal.primary && <span className="primary-badge">Primary</span>}
+                    </div>
+                    <button 
+                      onClick={() => fetchEvents(cal.id)}
+                      className="small-btn"
+                    >
+                      Load Events
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <div className="dashboard-card">
+          <h2>📋 Recent Events</h2>
+          <p>Your upcoming calendar events:</p>
+          
+          {loadingEvents && <p>Loading events...</p>}
+          
+          {events.length > 0 ? (
+            <div className="events-list">
+              <h4>Next {events.length} events:</h4>
+              {events.map((event: any) => (
+                <div key={event.id} className="event-item">
+                  <div className="event-title">
+                    {event.summary || 'No title'}
+                  </div>
+                  <div className="event-time">
+                    {event.start?.dateTime 
+                      ? new Date(event.start.dateTime).toLocaleString()
+                      : event.start?.date 
+                        ? new Date(event.start.date).toLocaleDateString()
+                        : 'No time'
+                    }
+                  </div>
+                  {event.location && (
+                    <div className="event-location">📍 {event.location}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : events.length === 0 && !loadingEvents ? (
+            <p>No upcoming events found. Click "Load Events" on a calendar above.</p>
+          ) : null}
+        </div>
+
+        <div className="dashboard-card">
           <h2>🚀 Next Steps</h2>
           <div className="next-steps">
             <div className="step">
-              <h4>1. Set up Google Cloud Console</h4>
-              <p>Create OAuth credentials for production</p>
+              <h4>1. ✅ Google Calendar Connected</h4>
+              <p>Your calendar sync is working!</p>
             </div>
             <div className="step">
               <h4>2. Create Meeting Types</h4>

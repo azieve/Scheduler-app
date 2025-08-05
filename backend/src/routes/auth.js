@@ -71,35 +71,22 @@ router.post('/logout', (req, res) => {
   res.json({ message: 'Logged out successfully' });
 });
 
-// Test calendar access
+// Test calendar access (using new calendar service)
 router.get('/calendar/test', authenticateToken, async (req, res) => {
   try {
-    // TODO: Get user's Google tokens from database
-    const accessToken = 'temp_token'; // Replace with actual token from user record
+    const calendarService = require('../services/calendarService');
     
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI
-    );
-
-    // Set credentials (in real app, get from database)
-    oauth2Client.setCredentials({
-      access_token: accessToken,
-      // refresh_token: user.googleRefreshToken
-    });
-
-    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-    
-    const response = await calendar.calendarList.list();
+    // Get user's calendars using the new service
+    const calendars = await calendarService.getUserCalendars(req.user.id);
     
     res.json({
       message: 'Calendar access successful',
-      calendars: response.data.items?.map(cal => ({
+      calendars: calendars.map(cal => ({
         id: cal.id,
         summary: cal.summary,
         primary: cal.primary
-      })) || []
+      })),
+      count: calendars.length
     });
   } catch (error) {
     console.error('Calendar test error:', error);

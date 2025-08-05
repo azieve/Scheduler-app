@@ -226,3 +226,83 @@
 .login-btn:hover {
   background: #3367d6;
 }
+
+/* Calendar and Events Styles */
+.calendar-list {
+  margin-top: 20px;
+}
+
+.calendar-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0;
+}
+
+.calendar-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  border: 1px solid #e0e4e8;
+}
+
+.calendar-item strong {
+  color: #333;
+}
+
+.primary-badge {
+  background: #4285f4;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.small-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.small-btn:hover {
+  background: #218838;
+}
+
+.events-list {
+  margin-top: 20px;
+}
+
+.event-item {
+  background: #f8f9fa;
+  border: 1px solid #e0e4e8;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 10px;
+}
+
+.event-title {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.event-time {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.event-location {
+  color: #666;
+  font-size: 12px;
+  font-style: italic;
+}

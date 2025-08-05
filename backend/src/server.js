@@ -81,7 +81,9 @@ app.get('/api', (req, res) => {
 
 // Routes
 const authRoutes = require('./routes/auth');
+const calendarRoutes = require('./routes/calendar');
 app.use('/api/auth', authRoutes);
+app.use('/api/calendar', calendarRoutes);
 
 app.use((err, req, res, next) => {
   logger.error(err.stack);
