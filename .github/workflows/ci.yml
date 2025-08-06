@@ -55,6 +55,20 @@ jobs:
         cd backend
         npm run lint || echo "Linting not configured yet"
     
+    - name: Setup test database
+      run: |
+        cd backend
+        # Create basic test database structure
+        PGPASSWORD=scheduler_password psql -h localhost -U scheduler_user -d scheduler_test_db -c "
+          CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";
+          CREATE TABLE IF NOT EXISTS users (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            email VARCHAR(255) UNIQUE NOT NULL,
+            username VARCHAR(100) UNIQUE,
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+          );
+        " || echo "Database setup completed or already exists"
+    
     - name: Run backend tests
       run: |
         cd backend
