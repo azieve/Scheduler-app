@@ -79,6 +79,12 @@ const TopNav: React.FC = () => {
         <div className="nav-right">
           <div className="user-info">
             <span className="user-name">👋 {user.fullName || user.email}</span>
+            <button 
+              onClick={() => navigate('/settings')} 
+              className="settings-btn"
+            >
+              ⚙️ Settings
+            </button>
             <button onClick={handleLogout} className="logout-btn">
               Logout
             </button>

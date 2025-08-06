@@ -75,6 +75,24 @@
   font-weight: 500;
 }
 
+.settings-btn {
+  background: none;
+  border: 1px solid #dee2e6;
+  color: #6c757d;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.settings-btn:hover {
+  background: #f8f9fa;
+  border-color: #adb5bd;
+  color: #495057;
+}
+
 .logout-btn {
   background: none;
   border: 1px solid #dee2e6;
@@ -113,6 +131,7 @@
     display: none;
   }
   
+  .settings-btn,
   .logout-btn {
     padding: 6px 12px;
     font-size: 13px;

@@ -1,48 +1,83 @@
 const calendarService = require('./calendarService');
+const UserSettings = require('../models/UserSettings');
+const BlockedTime = require('../models/BlockedTime');
 
 class AvailabilityService {
   // Generate available time slots for a given date and meeting type
   static async getAvailableSlots(userId, meetingType, date) {
     try {
-      // Default working hours (9 AM to 5 PM)
-      const workingHours = {
-        start: 9, // 9 AM
-        end: 17   // 5 PM
-      };
+      // Get user's settings for working hours and preferences
+      const userSettings = await UserSettings.findByUserId(userId);
+      
+      // Parse the date and get day of week
+      const targetDate = new Date(date);
+      const dayOfWeek = targetDate.getDay();
+      
+      // Check if user is available on this day
+      if (!userSettings.isAvailableOnDay(dayOfWeek)) {
+        return []; // No availability on this day
+      }
+      
+      // Get working hours for this day
+      const workingHours = userSettings.getWorkingHoursForDay(dayOfWeek);
+      if (!workingHours) {
+        return [];
+      }
+
+      // Parse working hours (format: "09:00")
+      const [startHour, startMin] = workingHours.start.split(':').map(Number);
+      const [endHour, endMin] = workingHours.end.split(':').map(Number);
 
       // Get start and end of the day in user's timezone
       const startOfDay = new Date(date);
-      startOfDay.setHours(workingHours.start, 0, 0, 0);
+      startOfDay.setHours(startHour, startMin, 0, 0);
       
       const endOfDay = new Date(date);
-      endOfDay.setHours(workingHours.end, 0, 0, 0);
+      endOfDay.setHours(endHour, endMin, 0, 0);
 
       // Fetch busy times from Google Calendar
       const busyTimes = await this.getBusyTimes(userId, startOfDay, endOfDay);
+      
+      // Fetch blocked times from user settings
+      const blockedTimes = await BlockedTime.findByUserIdAndDateRange(
+        userId, 
+        startOfDay, 
+        endOfDay
+      );
 
-      // Generate all possible slots
+      // Generate all possible slots using user's minimum notice and preferences
       const allSlots = this.generateTimeSlots(
         startOfDay, 
         endOfDay, 
-        meetingType.durationMinutes
+        meetingType.durationMinutes,
+        userSettings.minimumNoticeMinutes
       );
 
-      // Filter out busy times
+      // Combine busy times from calendar and blocked times
+      const allBlockedTimes = [
+        ...busyTimes.map(bt => ({ start: bt.start, end: bt.end })),
+        ...blockedTimes.map(bt => ({ start: bt.startTime, end: bt.endTime }))
+      ];
+
+      // Filter out busy times and blocked times
       const availableSlots = allSlots.filter(slot => {
         const slotStart = new Date(slot.start);
         const slotEnd = new Date(slot.end);
         
-        // Add buffer time before and after
-        const bufferStart = new Date(slotStart.getTime() - (meetingType.bufferBeforeMinutes * 60000));
-        const bufferEnd = new Date(slotEnd.getTime() + (meetingType.bufferAfterMinutes * 60000));
+        // Use global buffer settings if meeting type doesn't specify
+        const bufferBefore = meetingType.bufferBeforeMinutes || userSettings.defaultBufferBefore;
+        const bufferAfter = meetingType.bufferAfterMinutes || userSettings.defaultBufferAfter;
+        
+        const bufferStart = new Date(slotStart.getTime() - (bufferBefore * 60000));
+        const bufferEnd = new Date(slotEnd.getTime() + (bufferAfter * 60000));
 
-        // Check if this slot conflicts with any busy time
-        return !busyTimes.some(busyTime => {
-          const busyStart = new Date(busyTime.start);
-          const busyEnd = new Date(busyTime.end);
+        // Check if this slot conflicts with any busy/blocked time
+        return !allBlockedTimes.some(blockedTime => {
+          const blockedStart = new Date(blockedTime.start);
+          const blockedEnd = new Date(blockedTime.end);
           
           // Check for overlap including buffer times
-          return (bufferStart < busyEnd && bufferEnd > busyStart);
+          return (bufferStart < blockedEnd && bufferEnd > blockedStart);
         });
       });
 
@@ -89,7 +124,7 @@ class AvailabilityService {
   }
 
   // Generate time slots for a given day
-  static generateTimeSlots(startTime, endTime, durationMinutes) {
+  static generateTimeSlots(startTime, endTime, durationMinutes, minimumNoticeMinutes = 30) {
     const slots = [];
     const slotDuration = durationMinutes * 60000; // Convert to milliseconds
     const intervalMinutes = 15; // 15-minute intervals
@@ -98,12 +133,12 @@ class AvailabilityService {
 
     let currentTime = new Date(startTime);
 
-    // If the date is today, start from the next available slot after current time
+    // If the date is today, start from the next available slot after current time + minimum notice
     if (startTime.toDateString() === now.toDateString()) {
-      const nowPlus30Min = new Date(now.getTime() + (30 * 60000)); // 30 min buffer
-      if (currentTime < nowPlus30Min) {
+      const minimumTime = new Date(now.getTime() + (minimumNoticeMinutes * 60000));
+      if (currentTime < minimumTime) {
         // Round up to next 15-minute interval
-        const nextSlot = new Date(nowPlus30Min);
+        const nextSlot = new Date(minimumTime);
         const minutes = nextSlot.getMinutes();
         const roundedMinutes = Math.ceil(minutes / 15) * 15;
         nextSlot.setMinutes(roundedMinutes, 0, 0);

@@ -74,7 +74,8 @@ app.get('/api', (req, res) => {
       auth: '/api/auth/*',
       users: '/api/users/*',
       meetings: '/api/meetings/*',
-      calendar: '/api/calendar/*'
+      calendar: '/api/calendar/*',
+      userSettings: '/api/user-settings/*'
     }
   });
 });
@@ -85,11 +86,13 @@ const calendarRoutes = require('./routes/calendar');
 const meetingTypesRoutes = require('./routes/meetingTypes');
 const bookingRoutes = require('./routes/booking');
 const availabilityRoutes = require('./routes/availability');
+const userSettingsRoutes = require('./routes/userSettings');
 app.use('/api/auth', authRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/meeting-types', meetingTypesRoutes);
 app.use('/api/book', bookingRoutes);
 app.use('/api/availability', availabilityRoutes);
+app.use('/api/user-settings', userSettingsRoutes);
 
 app.use((err, req, res, next) => {
   logger.error(err.stack);
