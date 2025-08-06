@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import TopNav from '../Navigation/TopNav';
 import './MeetingTypes.css';
 
 interface MeetingType {
@@ -170,15 +171,18 @@ const MeetingTypes: React.FC = () => {
 
   return (
     <div className="meeting-types-container">
-      <div className="meeting-types-header">
-        <h1>Meeting Types</h1>
-        <button 
-          onClick={() => setShowCreateForm(true)}
-          className="create-btn"
-        >
-          + Create Meeting Type
-        </button>
-      </div>
+      <TopNav />
+      
+      <div className="meeting-types-content">
+        <div className="meeting-types-header">
+          <h1>Meeting Types</h1>
+          <button 
+            onClick={() => setShowCreateForm(true)}
+            className="create-btn"
+          >
+            + Create Meeting Type
+          </button>
+        </div>
 
       {showCreateForm && (
         <div className="form-overlay">
@@ -372,6 +376,7 @@ const MeetingTypes: React.FC = () => {
             </button>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

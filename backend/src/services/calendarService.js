@@ -246,6 +246,58 @@ class CalendarService {
       throw error;
     }
   }
+
+  // Create a calendar event
+  async createEvent(accessToken, refreshToken, calendarId, eventData) {
+    try {
+      this.oauth2Client.setCredentials({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+
+      const calendar = google.calendar({ version: 'v3', auth: this.oauth2Client });
+
+      const response = await calendar.events.insert({
+        calendarId: calendarId || 'primary',
+        resource: eventData,
+        sendNotifications: true
+      });
+
+      console.log('✅ Calendar event created:', response.data.id);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error creating calendar event:', error.message);
+      if (error.response) {
+        console.error('API Error:', error.response.data);
+      }
+      throw error;
+    }
+  }
+
+  // Get events from a calendar with date range
+  async getEvents(accessToken, refreshToken, calendarId, timeMin, timeMax) {
+    try {
+      this.oauth2Client.setCredentials({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+
+      const calendar = google.calendar({ version: 'v3', auth: this.oauth2Client });
+
+      const response = await calendar.events.list({
+        calendarId: calendarId || 'primary',
+        timeMin: timeMin,
+        timeMax: timeMax,
+        singleEvents: true,
+        orderBy: 'startTime'
+      });
+
+      return response.data.items || [];
+    } catch (error) {
+      console.error('❌ Error getting calendar events:', error.message);
+      throw error;
+    }
+  }
 }
 
 module.exports = new CalendarService();
