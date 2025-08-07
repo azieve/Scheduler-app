@@ -13,6 +13,7 @@ class Booking {
     this.timezone = data.timezone;
     this.status = data.status;
     this.googleEventId = data.google_event_id;
+    this.meetingLink = data.meeting_link;
     this.notes = data.notes;
     this.createdAt = data.created_at;
     this.updatedAt = data.updated_at;
@@ -69,15 +70,16 @@ class Booking {
         endTime,
         timezone = 'UTC',
         notes = '',
-        googleEventId = null
+        googleEventId = null,
+        meetingLink = ''
       } = bookingData;
 
       const result = await query(
         `INSERT INTO bookings (
           user_id, meeting_type_id, attendee_name, attendee_email, 
           attendee_phone, start_time, end_time, timezone, 
-          status, google_event_id, notes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
+          status, google_event_id, meeting_link, notes
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
         RETURNING *`,
         [
           userId,
@@ -90,6 +92,7 @@ class Booking {
           timezone,
           'confirmed',
           googleEventId,
+          meetingLink,
           notes
         ]
       );
@@ -107,7 +110,7 @@ class Booking {
       const allowedFields = [
         'attendee_name', 'attendee_email', 'attendee_phone',
         'start_time', 'end_time', 'timezone', 'status', 
-        'google_event_id', 'notes'
+        'google_event_id', 'meeting_link', 'notes'
       ];
       
       const updates = [];
@@ -169,6 +172,7 @@ class Booking {
       timezone: this.timezone,
       status: this.status,
       googleEventId: this.googleEventId,
+      meetingLink: this.meetingLink,
       notes: this.notes,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt

@@ -174,8 +174,8 @@ class CalendarService {
     }
   }
 
-  // Create a new calendar event
-  async createEvent(userId, calendarId = 'primary', eventData) {
+  // Create a new calendar event with advanced meeting types support
+  async createEvent(userId, calendarId = 'primary', eventData, meetingType = null) {
     try {
       const user = await User.findById(userId);
       if (!user) {
@@ -185,9 +185,14 @@ class CalendarService {
       await this.setupUserAuth(user);
       const calendar = google.calendar({ version: 'v3', auth: this.oauth2Client });
 
+      // Enhance event data with meeting type specific details
+      const enhancedEventData = await this.enhanceEventWithMeetingType(eventData, meetingType);
+
       const response = await calendar.events.insert({
         calendarId,
-        requestBody: eventData
+        requestBody: enhancedEventData,
+        sendNotifications: true,
+        conferenceDataVersion: meetingType && meetingType.videoProvider === 'google_meet' ? 1 : 0
       });
 
       console.log(`✅ Created event for user: ${user.email}`, response.data.id);
@@ -247,8 +252,8 @@ class CalendarService {
     }
   }
 
-  // Create a calendar event
-  async createEvent(accessToken, refreshToken, calendarId, eventData) {
+  // Create a calendar event (legacy method for backward compatibility)
+  async createEventLegacy(accessToken, refreshToken, calendarId, eventData) {
     try {
       this.oauth2Client.setCredentials({
         access_token: accessToken,
@@ -297,6 +302,137 @@ class CalendarService {
       console.error('❌ Error getting calendar events:', error.message);
       throw error;
     }
+  }
+
+  // Enhance event data with meeting type specific details
+  async enhanceEventWithMeetingType(eventData, meetingType) {
+    if (!meetingType) {
+      return eventData;
+    }
+
+    const enhanced = { ...eventData };
+
+    // Handle video calls
+    if (meetingType.meetingType === 'video_call') {
+      if (meetingType.videoProvider === 'google_meet' && meetingType.autoGenerateLink) {
+        // Request Google Meet conference creation
+        enhanced.conferenceData = {
+          createRequest: {
+            requestId: `meet-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            conferenceSolutionKey: {
+              type: 'hangoutsMeet'
+            }
+          }
+        };
+      } else if (!meetingType.autoGenerateLink && meetingType.customMeetingLink) {
+        // Use custom meeting link
+        enhanced.location = meetingType.customMeetingLink;
+        enhanced.description = (enhanced.description || '') + `\n\n🔗 Join meeting: ${meetingType.customMeetingLink}`;
+      }
+    }
+
+    // Handle phone calls
+    if (meetingType.meetingType === 'phone_call') {
+      enhanced.location = `Phone: ${meetingType.phoneNumber}`;
+      let phoneDescription = `📞 Phone: ${meetingType.phoneNumber}`;
+      
+      if (meetingType.dialInNumber) {
+        phoneDescription += `\n📞 Dial-in: ${meetingType.dialInNumber}`;
+      }
+      
+      if (meetingType.phoneInstructions) {
+        phoneDescription += `\n📱 Instructions: ${meetingType.phoneInstructions}`;
+      }
+      
+      enhanced.description = (enhanced.description || '') + '\n\n' + phoneDescription;
+    }
+
+    // Handle in-person meetings
+    if (meetingType.meetingType === 'in_person') {
+      enhanced.location = meetingType.meetingAddress || meetingType.location;
+      let locationDescription = `📍 Location: ${enhanced.location}`;
+      
+      if (meetingType.meetingRoom) {
+        locationDescription += `\n🏢 Room: ${meetingType.meetingRoom}`;
+      }
+      
+      if (meetingType.parkingInstructions) {
+        locationDescription += `\n🚗 Parking: ${meetingType.parkingInstructions}`;
+      }
+      
+      enhanced.description = (enhanced.description || '') + '\n\n' + locationDescription;
+    }
+
+    // Add pre-meeting instructions
+    if (meetingType.preMeetingInstructions) {
+      enhanced.description = (enhanced.description || '') + 
+        `\n\n📋 Preparation Instructions:\n${meetingType.preMeetingInstructions}`;
+    }
+
+    // Set calendar visibility
+    if (meetingType.calendarVisibility) {
+      enhanced.visibility = meetingType.calendarVisibility;
+    }
+
+    // Handle Gmail notifications
+    if (meetingType.gmailNotifications && meetingType.gmailNotifications.enabled) {
+      const notifications = meetingType.gmailNotifications;
+      
+      // Custom title
+      if (notifications.custom_title) {
+        enhanced.summary = notifications.custom_title;
+      }
+      
+      // Custom description (overrides automatic description)
+      if (notifications.custom_description) {
+        enhanced.description = notifications.custom_description;
+        
+        // Add meeting-specific details if requested
+        if (notifications.include_meeting_link && enhanced.location) {
+          enhanced.description += `\n\n🔗 Meeting Link: ${enhanced.location}`;
+        }
+        
+        if (notifications.include_preparation_notes && meetingType.preMeetingInstructions) {
+          enhanced.description += `\n\n📋 Preparation:\n${meetingType.preMeetingInstructions}`;
+        }
+      }
+      
+      // Set custom reminder times
+      if (notifications.reminder_minutes && notifications.reminder_minutes.length > 0) {
+        enhanced.reminders = {
+          useDefault: false,
+          overrides: notifications.reminder_minutes.map(minutes => ({
+            method: 'email',
+            minutes: minutes
+          }))
+        };
+      }
+    }
+
+    return enhanced;
+  }
+
+  // Generate Google Meet link for video calls
+  async generateGoogleMeetLink(eventData) {
+    try {
+      // This will be handled automatically when we set conferenceData in enhanceEventWithMeetingType
+      // Google Calendar API will generate the Meet link when creating the event
+      return eventData;
+    } catch (error) {
+      console.error('Error generating Google Meet link:', error);
+      throw error;
+    }
+  }
+
+  // Extract meeting link from created event
+  extractMeetingLink(createdEvent) {
+    if (createdEvent.conferenceData && createdEvent.conferenceData.entryPoints) {
+      const videoEntry = createdEvent.conferenceData.entryPoints.find(
+        entry => entry.entryPointType === 'video'
+      );
+      return videoEntry ? videoEntry.uri : null;
+    }
+    return null;
   }
 }
 

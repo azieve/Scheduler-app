@@ -30,6 +30,8 @@ router.get('/:username/:slug', async (req, res) => {
     }
     
     // Return public meeting type info and user info
+    const locationDetails = meetingType.getLocationDetails();
+    
     res.json({
       success: true,
       data: {
@@ -41,7 +43,20 @@ router.get('/:username/:slug', async (req, res) => {
           formattedDuration: meetingType.getFormattedDuration(),
           location: meetingType.location,
           color: meetingType.color,
-          publicSlug: meetingType.publicSlug
+          publicSlug: meetingType.publicSlug,
+          
+          // Advanced meeting type info for booking page
+          meetingType: meetingType.meetingType,
+          meetingTypeDisplay: meetingType.getMeetingTypeDisplayName(),
+          videoProvider: meetingType.videoProvider,
+          videoProviderDisplay: meetingType.getVideoProviderDisplayName(),
+          locationDetails: locationDetails,
+          preMeetingInstructions: meetingType.preMeetingInstructions,
+          attendeeQuestions: meetingType.attendeeQuestions,
+          maxAttendees: meetingType.maxAttendees,
+          allowGuests: meetingType.allowGuests,
+          requireConfirmation: meetingType.requireConfirmation,
+          bookingCancellationPolicy: meetingType.bookingCancellationPolicy
         },
         user: {
           username: user.username,
@@ -116,13 +131,24 @@ router.post('/:username/:slug', async (req, res) => {
       notes
     });
 
-    // Create Google Calendar event
+    // Create Google Calendar event with enhanced meeting type support
     let googleEventId = null;
+    let meetingLink = null;
+    
     try {
       if (user.hasGoogleAuth()) {
+        // Build event data using meeting type's calendar event details
+        const bookingData = {
+          attendeeName,
+          attendeeEmail,
+          notes
+        };
+        
+        const eventDetails = meetingType.getCalendarEventDetails(bookingData);
+        
         const event = {
-          summary: `${meetingType.name} - ${attendeeName}`,
-          description: `Meeting booked via ReadyToMeet.me\n\nAttendee: ${attendeeName} (${attendeeEmail})\nMeeting Type: ${meetingType.name}\n\n${notes ? `Notes: ${notes}` : ''}`,
+          summary: eventDetails.summary,
+          description: eventDetails.description,
           start: {
             dateTime: start.toISOString(),
             timeZone: timezone
@@ -135,29 +161,37 @@ router.post('/:username/:slug', async (req, res) => {
             { email: attendeeEmail },
             { email: user.email }
           ],
-          location: meetingType.location || meetingType.meetingLink || '',
-          conferenceData: meetingType.meetingLink ? {
-            createRequest: {
-              conferenceSolutionKey: { type: 'hangoutsMeet' }
-            }
-          } : undefined
+          location: eventDetails.location,
+          visibility: eventDetails.visibility,
+          reminders: eventDetails.reminders
         };
 
+        // Use the enhanced createEvent method
         const createdEvent = await calendarService.createEvent(
-          user.googleAccessToken,
-          user.googleRefreshToken,
+          user.id,
           'primary',
-          event
+          event,
+          meetingType
         );
 
         googleEventId = createdEvent.id;
-        await booking.update({ google_event_id: googleEventId });
+        
+        // Extract meeting link if it was generated (Google Meet)
+        meetingLink = calendarService.extractMeetingLink(createdEvent) || 
+                     meetingType.getEffectiveMeetingLink(createdEvent.conferenceData?.entryPoints?.[0]?.uri);
+        
+        await booking.update({ 
+          google_event_id: googleEventId,
+          meeting_link: meetingLink 
+        });
       }
     } catch (calError) {
       console.error('Failed to create Google Calendar event:', calError);
       // Don't fail the booking creation if calendar event fails
     }
 
+    const locationDetails = meetingType.getLocationDetails();
+    
     res.status(201).json({
       success: true,
       data: {
@@ -165,14 +199,26 @@ router.post('/:username/:slug', async (req, res) => {
         meetingType: {
           name: meetingType.name,
           durationMinutes: meetingType.durationMinutes,
+          meetingType: meetingType.meetingType,
+          meetingTypeDisplay: meetingType.getMeetingTypeDisplayName(),
           location: meetingType.location,
-          meetingLink: meetingType.meetingLink
+          locationDetails: locationDetails,
+          meetingLink: meetingLink || meetingType.getEffectiveMeetingLink(),
+          preMeetingInstructions: meetingType.preMeetingInstructions,
+          postMeetingInstructions: meetingType.postMeetingInstructions
         },
         user: {
           fullName: user.getFullName(),
           email: user.email
         },
-        googleEventCreated: !!googleEventId
+        googleEventCreated: !!googleEventId,
+        meetingLink: meetingLink,
+        instructions: {
+          preMeeting: meetingType.preMeetingInstructions,
+          postMeeting: meetingType.postMeetingInstructions,
+          location: locationDetails,
+          cancellationPolicy: meetingType.bookingCancellationPolicy
+        }
       }
     });
 

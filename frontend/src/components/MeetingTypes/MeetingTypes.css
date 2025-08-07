@@ -214,6 +214,12 @@
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
 }
 
+/* Enhanced Modal for Advanced Features */
+.enhanced-modal {
+  max-width: 800px;
+  width: 95%;
+}
+
 .form-header {
   padding: 20px;
   border-bottom: 1px solid #e0e4e8;
@@ -250,6 +256,66 @@
   padding: 20px;
 }
 
+/* Enhanced Form Styles */
+.enhanced-form {
+  padding: 0;
+}
+
+/* Form Tabs */
+.form-tabs {
+  display: flex;
+  border-bottom: 1px solid #e0e4e8;
+  background: #f8f9fa;
+  border-radius: 0;
+  overflow-x: auto;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  padding: 15px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  color: #4285f4;
+  background: rgba(66, 133, 244, 0.05);
+}
+
+.tab-btn.active {
+  color: #4285f4;
+  border-bottom-color: #4285f4;
+  background: white;
+}
+
+/* Tab Content */
+.tab-content {
+  padding: 24px;
+  min-height: 400px;
+}
+
+.tab-content h3 {
+  margin: 0 0 20px 0;
+  color: #333;
+  font-size: 18px;
+  font-weight: 600;
+  border-bottom: 1px solid #e0e4e8;
+  padding-bottom: 10px;
+}
+
+.tab-content h4 {
+  margin: 20px 0 15px 0;
+  color: #555;
+  font-size: 16px;
+  font-weight: 600;
+}
+
 .form-row {
   margin-bottom: 20px;
 }
@@ -262,16 +328,19 @@
 }
 
 .form-row input,
-.form-row textarea {
+.form-row textarea,
+.form-row select {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
   font-size: 14px;
+  box-sizing: border-box;
 }
 
 .form-row input:focus,
-.form-row textarea:focus {
+.form-row textarea:focus,
+.form-row select:focus {
   outline: none;
   border-color: #4285f4;
   box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
@@ -291,12 +360,14 @@
   margin-bottom: 5px;
 }
 
-.form-row-group input {
+.form-row-group input,
+.form-row-group select {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
   font-size: 14px;
+  box-sizing: border-box;
 }
 
 .form-actions {
@@ -342,4 +413,117 @@
   height: 50vh;
   font-size: 18px;
   color: #666;
+}
+
+/* Meeting Type Specific Sections */
+.meeting-type-section {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 15px;
+}
+
+.meeting-type-section h4 {
+  margin: 0 0 15px 0;
+  color: #495057;
+  font-size: 16px;
+  font-weight: 600;
+  border-bottom: 1px solid #dee2e6;
+  padding-bottom: 8px;
+}
+
+/* Checkbox Labels */
+.checkbox-label {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500 !important;
+  margin-bottom: 10px !important;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto !important;
+  margin: 0 !important;
+  cursor: pointer;
+}
+
+.checkbox-label small {
+  display: block;
+  margin-top: 5px;
+  color: #6c757d;
+  font-size: 12px;
+  font-weight: normal;
+}
+
+/* Notification Options */
+.notification-options {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 15px;
+  margin-top: 15px;
+}
+
+.notification-options h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.notification-options .checkbox-label {
+  margin-bottom: 8px !important;
+  font-size: 14px;
+}
+
+/* Small helper text */
+small {
+  color: #6c757d;
+  font-size: 12px;
+  display: block;
+  margin-top: 4px;
+}
+
+/* Form validation styles */
+.form-row input:invalid,
+.form-row textarea:invalid,
+.form-row select:invalid {
+  border-color: #dc3545;
+}
+
+.form-row input:valid,
+.form-row textarea:valid,
+.form-row select:valid {
+  border-color: #28a745;
+}
+
+/* Responsive design for tabs */
+@media (max-width: 768px) {
+  .enhanced-modal {
+    width: 98%;
+    max-width: none;
+    margin: 10px;
+  }
+  
+  .form-tabs {
+    flex-wrap: wrap;
+  }
+  
+  .tab-btn {
+    flex: 1;
+    min-width: auto;
+    padding: 12px 8px;
+    font-size: 13px;
+  }
+  
+  .tab-content {
+    padding: 16px;
+    min-height: 300px;
+  }
+  
+  .form-row-group {
+    grid-template-columns: 1fr;
+  }
 }
