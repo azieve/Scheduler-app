@@ -74,6 +74,12 @@ const TopNav: React.FC = () => {
           >
             📅 Manage Meetings
           </button>
+          <button 
+            onClick={() => navigate('/calendars')}
+            className="nav-btn manage-calendars-btn"
+          >
+            🗓️ Calendars
+          </button>
         </div>
 
         <div className="nav-right">

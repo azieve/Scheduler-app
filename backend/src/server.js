@@ -75,6 +75,8 @@ app.get('/api', (req, res) => {
       users: '/api/users/*',
       meetings: '/api/meetings/*',
       calendar: '/api/calendar/*',
+      calendars: '/api/calendars/*',
+      googleAccounts: '/api/google-accounts/*',
       userSettings: '/api/user-settings/*'
     }
   });
@@ -83,12 +85,16 @@ app.get('/api', (req, res) => {
 // Routes
 const authRoutes = require('./routes/auth');
 const calendarRoutes = require('./routes/calendar');
+const calendarsRoutes = require('./routes/calendars');
+const googleAccountsRoutes = require('./routes/googleAccounts');
 const meetingTypesRoutes = require('./routes/meetingTypes');
 const bookingRoutes = require('./routes/booking');
 const availabilityRoutes = require('./routes/availability');
 const userSettingsRoutes = require('./routes/userSettings');
 app.use('/api/auth', authRoutes);
 app.use('/api/calendar', calendarRoutes);
+app.use('/api/calendars', calendarsRoutes);
+app.use('/api/google-accounts', googleAccountsRoutes);
 app.use('/api/meeting-types', meetingTypesRoutes);
 app.use('/api/book', bookingRoutes);
 app.use('/api/availability', availabilityRoutes);
@@ -113,6 +119,10 @@ const server = app.listen(PORT, async () => {
   
   // Test database connection
   await testConnection();
+  
+  // Start sync lock cleanup process
+  const lockCleanup = require('./utils/lockCleanup');
+  lockCleanup.startCleanup();
 });
 
 module.exports = { app, server };

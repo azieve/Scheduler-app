@@ -88,7 +88,7 @@ class AvailabilityService {
     }
   }
 
-  // Get busy times from user's calendar
+  // Get busy times from user's calendars (all active calendars)
   static async getBusyTimes(userId, startTime, endTime) {
     try {
       const User = require('../models/User');
@@ -98,27 +98,24 @@ class AvailabilityService {
         throw new Error('User not authenticated with Google Calendar');
       }
 
-      // Get events from primary calendar
-      const events = await calendarService.getEvents(
-        user.googleAccessToken,
-        user.googleRefreshToken,
-        'primary',
+      // Use the updated calendar service that checks all active calendars
+      const availability = await calendarService.getUserAvailability(
+        userId,
         startTime.toISOString(),
         endTime.toISOString()
       );
 
-      // Convert events to busy time periods
-      const busyTimes = events
-        .filter(event => event.start && event.end)
-        .map(event => ({
-          start: event.start.dateTime || event.start.date,
-          end: event.end.dateTime || event.end.date,
-          summary: event.summary
-        }));
+      // Convert busy periods to the expected format
+      const busyTimes = availability.busy.map(busyPeriod => ({
+        start: busyPeriod.start,
+        end: busyPeriod.end,
+        calendarId: busyPeriod.calendarId
+      }));
 
+      console.log(`📅 Found ${busyTimes.length} busy periods across ${availability.checkedCalendars?.length || 0} calendars`);
       return busyTimes;
     } catch (error) {
-      console.error('Error getting busy times:', error);
+      console.error('Error getting busy times from multiple calendars:', error);
       throw error;
     }
   }

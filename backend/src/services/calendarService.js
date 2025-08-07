@@ -1,5 +1,8 @@
 const { google } = require('googleapis');
 const User = require('../models/User');
+const Calendar = require('../models/Calendar');
+const GoogleAccount = require('../models/GoogleAccount');
+const { query } = require('../config/database');
 
 class CalendarService {
   constructor() {
@@ -8,6 +11,41 @@ class CalendarService {
       process.env.GOOGLE_CLIENT_SECRET,
       process.env.GOOGLE_REDIRECT_URI
     );
+  }
+
+  // Check if user has any active sync locks that would prevent calendar operations
+  async checkSyncLocks(userId) {
+    try {
+      const activeLocks = await query(`
+        SELECT operation, locked_at, expires_at 
+        FROM sync_locks 
+        WHERE user_id = $1 AND expires_at > NOW()
+        ORDER BY locked_at DESC
+      `, [userId]);
+
+      if (activeLocks.rows.length > 0) {
+        const lock = activeLocks.rows[0];
+        const timeRemaining = new Date(lock.expires_at) - new Date();
+        const minutesRemaining = Math.ceil(timeRemaining / (1000 * 60));
+        
+        throw new Error(
+          `Cannot sync calendars: ${lock.operation} operation is in progress. ` +
+          `Please wait ${minutesRemaining} minute(s) or try again later.`
+        );
+      }
+      
+      return true;
+    } catch (error) {
+      if (error.message.includes('Cannot sync calendars')) {
+        throw error; // Re-throw lock conflict errors
+      }
+      
+      console.error('Error checking sync locks:', error);
+      // If we can't check locks due to DB error, allow the operation to proceed
+      // This prevents a DB issue from completely blocking calendar sync
+      console.warn('Lock check failed, proceeding with sync operation');
+      return true;
+    }
   }
 
   // Set up OAuth client with user's tokens
@@ -124,12 +162,25 @@ class CalendarService {
     }
   }
 
-  // Get user's availability for a specific time range
-  async getUserAvailability(userId, startTime, endTime, calendarIds = ['primary']) {
+  // Get user's availability for a specific time range across all active calendars
+  async getUserAvailability(userId, startTime, endTime, specificCalendarIds = null) {
     try {
       const user = await User.findById(userId);
       if (!user) {
         throw new Error('User not found');
+      }
+
+      // Get calendar IDs to check
+      let calendarIds;
+      if (specificCalendarIds) {
+        calendarIds = specificCalendarIds;
+      } else {
+        // Get all active calendar IDs for this user
+        calendarIds = await Calendar.getActiveCalendarIds(userId);
+        if (calendarIds.length === 0) {
+          // Fallback to primary if no calendars are configured
+          calendarIds = ['primary'];
+        }
       }
 
       await this.setupUserAuth(user);
@@ -161,12 +212,13 @@ class CalendarService {
         }
       });
 
-      console.log(`⏰ Found ${busyTimes.length} busy periods for user: ${user.email}`);
+      console.log(`⏰ Found ${busyTimes.length} busy periods across ${calendarIds.length} calendars for user: ${user.email}`);
       return {
         timeMin: startTime,
         timeMax: endTime,
         busy: busyTimes,
-        calendars: Object.keys(calendars)
+        calendars: Object.keys(calendars),
+        checkedCalendars: calendarIds
       };
     } catch (error) {
       console.error('Error fetching user availability:', error);
@@ -175,11 +227,22 @@ class CalendarService {
   }
 
   // Create a new calendar event with advanced meeting types support
-  async createEvent(userId, calendarId = 'primary', eventData, meetingType = null) {
+  async createEvent(userId, calendarId = null, eventData, meetingType = null) {
     try {
       const user = await User.findById(userId);
       if (!user) {
         throw new Error('User not found');
+      }
+
+      // If no calendar ID provided, use the user's primary calendar
+      if (!calendarId) {
+        const primaryCalendar = await Calendar.findPrimaryByUserId(userId);
+        if (primaryCalendar) {
+          calendarId = primaryCalendar.googleCalendarId;
+        } else {
+          // Fallback to 'primary' if no calendars are configured
+          calendarId = 'primary';
+        }
       }
 
       await this.setupUserAuth(user);
@@ -195,7 +258,7 @@ class CalendarService {
         conferenceDataVersion: meetingType && meetingType.videoProvider === 'google_meet' ? 1 : 0
       });
 
-      console.log(`✅ Created event for user: ${user.email}`, response.data.id);
+      console.log(`✅ Created event in calendar ${calendarId} for user: ${user.email}`, response.data.id);
       return response.data;
     } catch (error) {
       console.error('Error creating calendar event:', error);
@@ -433,6 +496,244 @@ class CalendarService {
       return videoEntry ? videoEntry.uri : null;
     }
     return null;
+  }
+
+  // Sync user's calendars from Google Calendar API
+  async syncUserCalendars(userId) {
+    try {
+      // Check for active sync locks before proceeding
+      await this.checkSyncLocks(userId);
+      console.log(`🔄 Starting calendar sync for user ${userId} (no active locks found)`);
+      
+      const googleCalendars = await this.getUserCalendars(userId);
+      const syncedCalendars = await Calendar.syncUserCalendarsFromGoogle(userId, googleCalendars);
+      
+      console.log(`🔄 Synced ${syncedCalendars.length} calendars for user`);
+      return syncedCalendars;
+    } catch (error) {
+      console.error('Error syncing user calendars:', error);
+      throw error;
+    }
+  }
+
+  // Get user's stored calendars with sync option
+  async getUserStoredCalendars(userId, syncFromGoogle = false) {
+    try {
+      if (syncFromGoogle) {
+        await this.syncUserCalendars(userId);
+      }
+      
+      return await Calendar.findByUserId(userId);
+    } catch (error) {
+      console.error('Error getting user stored calendars:', error);
+      throw error;
+    }
+  }
+
+  // Get events from multiple calendars
+  async getEventsFromMultipleCalendars(userId, calendarIds = null, options = {}) {
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Get calendar IDs to check
+      let targetCalendarIds;
+      if (calendarIds) {
+        targetCalendarIds = calendarIds;
+      } else {
+        // Get all active calendar IDs for this user
+        targetCalendarIds = await Calendar.getActiveCalendarIds(userId);
+        if (targetCalendarIds.length === 0) {
+          targetCalendarIds = ['primary'];
+        }
+      }
+
+      await this.setupUserAuth(user);
+
+      // Fetch events from all calendars
+      const allEvents = [];
+      for (const calendarId of targetCalendarIds) {
+        try {
+          const events = await this.getCalendarEvents(userId, calendarId, options);
+          allEvents.push(...events.map(event => ({ ...event, calendarId })));
+        } catch (error) {
+          console.error(`Error fetching events from calendar ${calendarId}:`, error.message);
+          // Continue with other calendars even if one fails
+        }
+      }
+
+      // Sort all events by start time
+      allEvents.sort((a, b) => {
+        const aStart = new Date(a.start.dateTime || a.start.date);
+        const bStart = new Date(b.start.dateTime || b.start.date);
+        return aStart - bStart;
+      });
+
+      console.log(`📅 Found ${allEvents.length} total events across ${targetCalendarIds.length} calendars`);
+      return allEvents;
+    } catch (error) {
+      console.error('Error getting events from multiple calendars:', error);
+      throw error;
+    }
+  }
+
+  // Set up OAuth client with specific Google account credentials
+  async setupGoogleAccountAuth(googleAccount) {
+    if (!googleAccount.hasValidAuth()) {
+      throw new Error(`Google account ${googleAccount.googleEmail} has invalid authentication`);
+    }
+
+    this.oauth2Client.setCredentials({
+      access_token: googleAccount.googleAccessToken,
+      refresh_token: googleAccount.googleRefreshToken,
+    });
+
+    // Handle token refresh automatically
+    this.oauth2Client.on('tokens', async (tokens) => {
+      console.log(`🔄 Refreshing Google tokens for account: ${googleAccount.googleEmail}`);
+      
+      // Update account's tokens in database
+      if (tokens.access_token) {
+        await googleAccount.updateTokens(
+          tokens.access_token, 
+          tokens.refresh_token || googleAccount.googleRefreshToken
+        );
+      }
+    });
+
+    return this.oauth2Client;
+  }
+
+  // Get calendars from a specific Google account
+  async getCalendarsFromGoogleAccount(googleAccount) {
+    try {
+      await this.setupGoogleAccountAuth(googleAccount);
+      const calendar = google.calendar({ version: 'v3', auth: this.oauth2Client });
+      
+      const response = await calendar.calendarList.list();
+      
+      const calendars = response.data.items?.map(cal => ({
+        id: cal.id,
+        summary: cal.summary,
+        description: cal.description,
+        primary: cal.primary,
+        accessRole: cal.accessRole,
+        backgroundColor: cal.backgroundColor,
+        foregroundColor: cal.foregroundColor,
+        selected: cal.selected,
+        timeZone: cal.timeZone,
+        googleAccountId: googleAccount.id,
+        googleAccountEmail: googleAccount.googleEmail
+      })) || [];
+
+      console.log(`📅 Found ${calendars.length} calendars for Google account: ${googleAccount.googleEmail}`);
+      return calendars;
+    } catch (error) {
+      console.error(`Error fetching calendars for Google account ${googleAccount.googleEmail}:`, error);
+      throw error;
+    }
+  }
+
+  // Sync calendars from a specific Google account
+  async syncUserCalendarsFromGoogleAccount(userId, googleAccount) {
+    try {
+      // Check for active sync locks before proceeding
+      await this.checkSyncLocks(userId);
+      
+      const googleCalendars = await this.getCalendarsFromGoogleAccount(googleAccount);
+      
+      // Get existing calendars for this Google account
+      const existingCalendars = await Calendar.findByUserId(userId);
+      const existingForThisAccount = existingCalendars.filter(cal => 
+        cal.googleAccountId === googleAccount.id
+      );
+      
+      // Create or update calendars from this Google account
+      const syncedCalendars = [];
+      for (const googleCal of googleCalendars) {
+        let calendar = existingForThisAccount.find(cal => cal.googleCalendarId === googleCal.id);
+        
+        if (calendar) {
+          // Update existing calendar
+          await calendar.syncFromGoogle(googleCal);
+          syncedCalendars.push(calendar);
+        } else {
+          // Create new calendar
+          const newCalendar = await Calendar.create({
+            userId,
+            googleCalendarId: googleCal.id,
+            calendarName: googleCal.summary || 'Untitled Calendar',
+            calendarDescription: googleCal.description,
+            isPrimary: false, // New calendars from additional accounts are not primary by default
+            backgroundColor: googleCal.backgroundColor,
+            foregroundColor: googleCal.foregroundColor,
+            accessRole: googleCal.accessRole || 'owner',
+            timezone: googleCal.timeZone,
+            googleAccountId: googleAccount.id
+          });
+          syncedCalendars.push(newCalendar);
+        }
+      }
+
+      // Deactivate calendars that are no longer in this Google account
+      const currentGoogleIds = googleCalendars.map(cal => cal.id);
+      for (const existingCal of existingForThisAccount) {
+        if (!currentGoogleIds.includes(existingCal.googleCalendarId)) {
+          console.log(`Calendar ${existingCal.calendarName} no longer found in Google account ${googleAccount.googleEmail}, deactivating`);
+          await existingCal.update({ is_active: false });
+        }
+      }
+
+      console.log(`✅ Synced ${syncedCalendars.length} calendars from Google account: ${googleAccount.googleEmail}`);
+      return syncedCalendars;
+    } catch (error) {
+      console.error(`Error syncing calendars from Google account ${googleAccount.googleEmail}:`, error);
+      throw error;
+    }
+  }
+
+  // Enhanced sync method that handles all Google accounts for a user
+  async syncAllUserCalendars(userId) {
+    try {
+      // Check for active sync locks before proceeding
+      await this.checkSyncLocks(userId);
+      console.log(`🔄 Starting calendar sync for user ${userId} (no active locks found)`);
+      
+      const googleAccounts = await GoogleAccount.findByUserId(userId, true); // Only active accounts
+      
+      if (googleAccounts.length === 0) {
+        console.log('No active Google accounts found for user');
+        return [];
+      }
+
+      const allSyncedCalendars = [];
+      
+      // Sync calendars from each Google account
+      for (const googleAccount of googleAccounts) {
+        try {
+          const accountCalendars = await this.syncUserCalendarsFromGoogleAccount(userId, googleAccount);
+          allSyncedCalendars.push(...accountCalendars);
+        } catch (error) {
+          console.error(`Failed to sync calendars from account ${googleAccount.googleEmail}:`, error);
+          // Continue with other accounts even if one fails
+        }
+      }
+
+      // Sort results so primary calendars appear first
+      allSyncedCalendars.sort((a, b) => {
+        if (a.isPrimary && !b.isPrimary) return -1;
+        if (!a.isPrimary && b.isPrimary) return 1;
+        return a.calendarName.localeCompare(b.calendarName);
+      });
+
+      console.log(`✅ Synced ${allSyncedCalendars.length} total calendars across ${googleAccounts.length} Google accounts`);
+      return allSyncedCalendars;
+    } catch (error) {
+      console.error('Error syncing all user calendars:', error);
+      throw error;
+    }
   }
 }
 

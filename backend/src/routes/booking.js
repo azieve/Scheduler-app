@@ -2,6 +2,7 @@ const express = require('express');
 const MeetingType = require('../models/MeetingType');
 const User = require('../models/User');
 const Booking = require('../models/Booking');
+const Calendar = require('../models/Calendar');
 const calendarService = require('../services/calendarService');
 
 const router = express.Router();
@@ -134,9 +135,13 @@ router.post('/:username/:slug', async (req, res) => {
     // Create Google Calendar event with enhanced meeting type support
     let googleEventId = null;
     let meetingLink = null;
+    let calendarUsed = null;
     
     try {
       if (user.hasGoogleAuth()) {
+        // Get the user's primary calendar for storing the calendar ID
+        const primaryCalendar = await Calendar.findPrimaryByUserId(user.id);
+        
         // Build event data using meeting type's calendar event details
         const bookingData = {
           attendeeName,
@@ -166,15 +171,16 @@ router.post('/:username/:slug', async (req, res) => {
           reminders: eventDetails.reminders
         };
 
-        // Use the enhanced createEvent method
+        // Use the enhanced createEvent method (auto-selects primary calendar)
         const createdEvent = await calendarService.createEvent(
           user.id,
-          'primary',
+          null, // Let the service choose the primary calendar
           event,
           meetingType
         );
 
         googleEventId = createdEvent.id;
+        calendarUsed = primaryCalendar;
         
         // Extract meeting link if it was generated (Google Meet)
         meetingLink = calendarService.extractMeetingLink(createdEvent) || 
@@ -182,7 +188,8 @@ router.post('/:username/:slug', async (req, res) => {
         
         await booking.update({ 
           google_event_id: googleEventId,
-          meeting_link: meetingLink 
+          meeting_link: meetingLink,
+          calendar_id: primaryCalendar?.id || null
         });
       }
     } catch (calError) {

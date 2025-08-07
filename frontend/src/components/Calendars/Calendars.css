@@ -1,0 +1,556 @@
+.calendars-container {
+  min-height: 100vh;
+  background: #f5f7fa;
+}
+
+.calendars-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.calendars-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.calendars-header h1 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.secondary-btn {
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.secondary-btn:hover {
+  background: #5a6268;
+  transform: translateY(-1px);
+}
+
+.sync-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sync-btn:hover:not(:disabled) {
+  background: #218838;
+  transform: translateY(-1px);
+}
+
+.sync-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.add-account-btn {
+  background: #17a2b8;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.add-account-btn:hover {
+  background: #138496;
+  transform: translateY(-1px);
+}
+
+/* Info Card */
+.calendars-info {
+  margin-bottom: 30px;
+}
+
+.info-card {
+  background: white;
+  border: 1px solid #e0e4e8;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.info-card h3 {
+  margin: 0 0 15px 0;
+  color: #2c3e50;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.info-card ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #555;
+}
+
+.info-card li {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+/* Calendars Grid */
+.calendars-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 25px;
+}
+
+.calendar-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e0e4e8;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.calendar-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.card-header {
+  padding: 20px;
+  background: #4285f4;
+  color: white;
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+}
+
+.calendar-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.calendar-info h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.calendar-description {
+  margin: 0;
+  opacity: 0.9;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.card-content {
+  padding: 20px;
+}
+
+.calendar-details {
+  margin-bottom: 20px;
+}
+
+.detail {
+  margin-bottom: 12px;
+  color: #555;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail strong {
+  color: #333;
+  font-weight: 600;
+  min-width: 70px;
+}
+
+/* Status Badges */
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.primary {
+  background: #ffd700;
+  color: #8b6500;
+}
+
+.status-badge.active {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-badge.inactive {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+/* Card Actions */
+.card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.primary-btn {
+  background: #ffc107;
+  color: #212529;
+}
+
+.primary-btn:hover {
+  background: #e0a800;
+}
+
+.activate-btn {
+  background: #28a745;
+  color: white;
+}
+
+.activate-btn:hover {
+  background: #218838;
+}
+
+.deactivate-btn {
+  background: #6c757d;
+  color: white;
+}
+
+.deactivate-btn:hover {
+  background: #5a6268;
+}
+
+.remove-btn {
+  background: #dc3545;
+  color: white;
+}
+
+.remove-btn:hover {
+  background: #c82333;
+}
+
+/* Empty State */
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  background: white;
+  border-radius: 12px;
+  border: 2px dashed #e0e4e8;
+}
+
+.empty-state h3 {
+  color: #2c3e50;
+  margin-bottom: 15px;
+  font-size: 24px;
+}
+
+.empty-state p {
+  color: #666;
+  margin-bottom: 25px;
+  font-size: 16px;
+  line-height: 1.5;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  padding: 20px;
+  border-bottom: 1px solid #e0e4e8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: #333;
+  font-size: 24px;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.google-calendars-list {
+  margin: 20px 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.google-calendar-item {
+  padding: 15px;
+  border: 1px solid #e0e4e8;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  background: #f8f9fa;
+}
+
+.google-calendar-info h4 {
+  margin: 0 0 8px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.google-calendar-info p {
+  margin: 0 0 8px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.access-role {
+  display: inline-block;
+  background: #e9ecef;
+  color: #495057;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-right: 8px;
+}
+
+.primary-badge {
+  display: inline-block;
+  background: #ffd700;
+  color: #8b6500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e4e8;
+  margin-top: 20px;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 50vh;
+  font-size: 18px;
+  color: #666;
+}
+
+/* Google Accounts Section */
+.google-accounts-section {
+  margin-bottom: 40px;
+}
+
+.google-accounts-section h2 {
+  margin: 0 0 20px 0;
+  color: #2c3e50;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.google-accounts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.google-account-card {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #e0e4e8;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.google-account-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.account-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.account-info h4 {
+  margin: 0 0 4px 0;
+  color: #2c3e50;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.account-email {
+  margin: 0;
+  color: #6c757d;
+  font-size: 14px;
+}
+
+.account-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge.primary {
+  background: #ffd700;
+  color: #8b6500;
+}
+
+.badge.work {
+  background: #e7f3ff;
+  color: #0066cc;
+}
+
+.badge.personal {
+  background: #e8f5e8;
+  color: #2d5a2d;
+}
+
+.badge.other {
+  background: #f8f9fa;
+  color: #6c757d;
+}
+
+/* Google Account Actions */
+.account-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .calendars-header {
+    flex-direction: column;
+    gap: 20px;
+    align-items: stretch;
+  }
+  
+  .header-actions {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .calendars-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .google-accounts-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .card-actions {
+    justify-content: center;
+  }
+  
+  .modal-content {
+    margin: 20px;
+    width: calc(100% - 40px);
+  }
+}
