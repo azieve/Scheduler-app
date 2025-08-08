@@ -98,14 +98,37 @@ class AvailabilityService {
         throw new Error('User not authenticated with Google Calendar');
       }
 
-      // Get events from primary calendar
-      const events = await calendarService.getEvents(
-        user.googleAccessToken,
-        user.googleRefreshToken,
-        'primary',
-        startTime.toISOString(),
-        endTime.toISOString()
-      );
+      // Get events from all active calendars using the new calendar system
+      const Calendar = require('../models/Calendar');
+      const Account = require('../models/Account');
+      
+      const activeCalendars = await Calendar.findByUserId(userId, true); // active only
+      let allEvents = [];
+      
+      for (const calendar of activeCalendars) {
+        try {
+          // Get the account for this calendar to access tokens
+          const account = await Account.findById(calendar.accountId);
+          if (!account || !account.isActive) {
+            continue;
+          }
+          
+          const events = await calendarService.getEvents(
+            account.googleAccessToken,
+            account.googleRefreshToken,
+            calendar.googleCalendarId,
+            startTime.toISOString(),
+            endTime.toISOString()
+          );
+          
+          allEvents = allEvents.concat(events);
+        } catch (error) {
+          console.error(`Error fetching events from calendar ${calendar.calendarName}:`, error);
+          // Continue with other calendars even if one fails
+        }
+      }
+      
+      const events = allEvents;
 
       // Convert events to busy time periods
       const busyTimes = events

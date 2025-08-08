@@ -197,8 +197,9 @@ class Calendar {
 
   /**
    * Create or update calendar from Google Calendar data
+   * @param {boolean} allowReinstateDeleted - Whether to reinstate previously deleted calendars (default: false)
    */
-  static async createOrUpdateFromGoogle(accountId, userId, googleCalendarData) {
+  static async createOrUpdateFromGoogle(accountId, userId, googleCalendarData, allowReinstateDeleted = false) {
     try {
       const {
         id: googleCalendarId,
@@ -218,8 +219,17 @@ class Calendar {
       `, [userId, googleCalendarId]);
 
       if (deletedCalendar.rows.length > 0) {
-        console.log(`🚫 Skipping calendar "${calendarName}" - was intentionally deleted by user`);
-        return null; // Don't recreate intentionally deleted calendars
+        if (allowReinstateDeleted) {
+          // Clear the deletion record to allow reinstatement
+          console.log(`🔄 Reinstating previously deleted calendar: "${calendarName}"`);
+          await query(`
+            DELETE FROM deleted_calendars 
+            WHERE user_id = $1 AND google_calendar_id = $2 AND deleted_by_user = true
+          `, [userId, googleCalendarId]);
+        } else {
+          console.log(`🚫 Skipping calendar "${calendarName}" - was intentionally deleted by user`);
+          return null; // Don't recreate intentionally deleted calendars
+        }
       }
 
       // Check if calendar already exists

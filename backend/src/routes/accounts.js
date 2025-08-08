@@ -160,6 +160,77 @@ router.post('/add', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/accounts/:id/reauth - Re-authenticate existing account (refresh OAuth tokens)
+ */
+router.post('/:id/reauth', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const accountId = parseInt(req.params.id);
+    
+    // Find the account
+    const account = await Account.findById(accountId);
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: 'Account not found'
+      });
+    }
+    
+    // Verify ownership
+    if (account.userId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied'
+      });
+    }
+    
+    // Create OAuth2 client (use existing callback URL)
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      `http://localhost:3001/api/auth/google/callback`
+    );
+    
+    // Generate authorization URL with additional scopes for calendar access
+    // Force consent to get fresh tokens
+    const authUrl = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      prompt: 'consent',
+      scope: [
+        'email',
+        'profile',
+        'https://www.googleapis.com/auth/calendar.readonly',
+        'https://www.googleapis.com/auth/calendar.events'
+      ],
+      state: JSON.stringify({ 
+        action: 'reauth_account',
+        userId, 
+        accountId,
+        accountType: account.accountType
+      }),
+      // Hint which account to use for re-authentication
+      login_hint: account.googleEmail
+    });
+    
+    console.log(`🔗 Generated re-authentication URL for account ${account.googleEmail}`);
+    
+    res.json({
+      success: true,
+      data: {
+        authorizationUrl: authUrl,
+        accountEmail: account.googleEmail,
+        message: `Redirect user to re-authenticate account "${account.googleEmail}"`
+      }
+    });
+  } catch (error) {
+    console.error('Error initiating account re-authentication:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to initiate account re-authentication'
+    });
+  }
+});
 
 /**
  * PUT /api/accounts/:id - Update account settings
