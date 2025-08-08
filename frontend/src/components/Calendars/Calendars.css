@@ -1,0 +1,416 @@
+.calendars-page {
+  min-height: 100vh;
+  background-color: #f8fafc;
+}
+
+.calendars-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Header */
+.calendars-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.calendars-header h1 {
+  color: #1e293b;
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.calendars-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Messages */
+.message {
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+
+.message.success {
+  background-color: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.message.error {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+/* Buttons */
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+.btn-secondary {
+  background-color: #6b7280;
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #4b5563;
+}
+
+.btn-success {
+  background-color: #10b981;
+  color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+  background-color: #059669;
+}
+
+.btn-warning {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.btn-warning:hover:not(:disabled) {
+  background-color: #d97706;
+}
+
+.btn-danger {
+  background-color: #ef4444;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #dc2626;
+}
+
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+/* Loading State */
+.loading {
+  text-align: center;
+  padding: 3rem;
+  color: #6b7280;
+  font-size: 1.125rem;
+}
+
+/* No Accounts State */
+.no-accounts {
+  text-align: center;
+  padding: 3rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+}
+
+.no-accounts h3 {
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+}
+
+.no-accounts p {
+  color: #6b7280;
+  margin-bottom: 1.5rem;
+}
+
+/* Accounts Section */
+.accounts-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Account Card */
+.account-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  overflow: hidden;
+}
+
+.account-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.account-info h3 {
+  color: #1e293b;
+  margin: 0 0 0.25rem 0;
+  font-size: 1.125rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.account-email {
+  color: #6b7280;
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+}
+
+.account-stats {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.stat {
+  color: #4b5563;
+  font-size: 0.875rem;
+}
+
+.account-type {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.account-type.personal {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.account-type.work {
+  background-color: #f3e8ff;
+  color: #7c3aed;
+}
+
+.account-type.other {
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+.account-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Badges */
+.badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.badge.primary {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+/* Calendars List */
+.calendars-list {
+  padding: 0;
+}
+
+.calendar-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background-color 0.2s ease;
+}
+
+.calendar-item:hover {
+  background-color: #f8fafc;
+}
+
+.calendar-item:last-child {
+  border-bottom: none;
+}
+
+.calendar-item.inactive {
+  opacity: 0.7;
+}
+
+.calendar-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.calendar-info {
+  flex: 1;
+}
+
+.calendar-info h4 {
+  margin: 0 0 0.25rem 0;
+  color: #1e293b;
+  font-size: 1rem;
+}
+
+.calendar-description {
+  color: #6b7280;
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+}
+
+.calendar-meta {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.status {
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status.primary {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.status.active {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status.inactive {
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+.access-role, .timezone {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.calendar-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* No Calendars State */
+.no-calendars {
+  padding: 1.5rem;
+  text-align: center;
+  color: #6b7280;
+}
+
+.no-calendars p {
+  margin: 0 0 1rem 0;
+}
+
+/* Help Section */
+.calendars-help {
+  margin-top: 3rem;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+}
+
+.calendars-help h3 {
+  color: #1e293b;
+  margin: 0 0 1rem 0;
+}
+
+.calendars-help ul {
+  margin: 0;
+  padding-left: 1.5rem;
+  color: #4b5563;
+}
+
+.calendars-help li {
+  margin-bottom: 0.5rem;
+}
+
+.calendars-help strong {
+  color: #1e293b;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .calendars-container {
+    padding: 1rem;
+  }
+  
+  .calendars-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .calendars-actions {
+    justify-content: center;
+  }
+  
+  .account-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .calendar-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  
+  .calendar-info {
+    order: 1;
+  }
+  
+  .calendar-actions {
+    order: 2;
+    justify-content: flex-start;
+  }
+  
+  .calendar-color {
+    order: 0;
+    align-self: flex-start;
+  }
+  
+  .calendar-meta {
+    justify-content: flex-start;
+  }
+}

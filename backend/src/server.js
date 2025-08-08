@@ -75,6 +75,8 @@ app.get('/api', (req, res) => {
       users: '/api/users/*',
       meetings: '/api/meetings/*',
       calendar: '/api/calendar/*',
+      accounts: '/api/accounts/*',
+      calendars: '/api/calendars/*',
       userSettings: '/api/user-settings/*'
     }
   });
@@ -83,12 +85,16 @@ app.get('/api', (req, res) => {
 // Routes
 const authRoutes = require('./routes/auth');
 const calendarRoutes = require('./routes/calendar');
+const accountsRoutes = require('./routes/accounts');
+const calendarsRoutes = require('./routes/calendars');
 const meetingTypesRoutes = require('./routes/meetingTypes');
 const bookingRoutes = require('./routes/booking');
 const availabilityRoutes = require('./routes/availability');
 const userSettingsRoutes = require('./routes/userSettings');
 app.use('/api/auth', authRoutes);
 app.use('/api/calendar', calendarRoutes);
+app.use('/api/accounts', accountsRoutes);
+app.use('/api/calendars', calendarsRoutes);
 app.use('/api/meeting-types', meetingTypesRoutes);
 app.use('/api/book', bookingRoutes);
 app.use('/api/availability', availabilityRoutes);

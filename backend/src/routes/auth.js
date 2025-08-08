@@ -20,6 +20,52 @@ router.get('/google/callback',
   passport.authenticate('google', { failureRedirect: '/login' }),
   async (req, res) => {
     try {
+      // Check if this is an account addition request
+      const { state } = req.query;
+      let isAccountAddition = false;
+      let accountContext = null;
+      
+      if (state) {
+        try {
+          accountContext = JSON.parse(state);
+          isAccountAddition = accountContext.action === 'add_account';
+        } catch (error) {
+          console.log('Could not parse state parameter, treating as regular login');
+        }
+      }
+      
+      if (isAccountAddition && accountContext) {
+        // Handle account addition
+        console.log('🔗 Processing account addition for user:', accountContext.userId);
+        
+        const Account = require('../models/Account');
+        
+        // Check if this account is already connected to the user
+        const existingAccount = await Account.findByGoogleEmail(accountContext.userId, req.user.email);
+        if (existingAccount) {
+          console.log('Account already exists, updating tokens');
+          await existingAccount.updateTokens(req.user.googleAccessToken, req.user.googleRefreshToken);
+          return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/calendars?success=account_updated&email=${encodeURIComponent(req.user.email)}`);
+        }
+        
+        // Create new secondary account
+        const newAccount = await Account.create({
+          userId: accountContext.userId,
+          googleId: req.user.googleId,
+          googleEmail: req.user.email,
+          displayName: `${req.user.firstName} ${req.user.lastName}`.trim(),
+          googleAccessToken: req.user.googleAccessToken,
+          googleRefreshToken: req.user.googleRefreshToken,
+          accountType: accountContext.accountType || 'personal',
+          isPrimary: false, // Secondary accounts are never primary
+          isActive: true
+        });
+        
+        console.log(`✅ Added secondary account: ${req.user.email}`);
+        return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/calendars?success=account_added&email=${encodeURIComponent(req.user.email)}`);
+      }
+      
+      // Regular login flow
       // Generate JWT token
       const token = jwt.sign(
         { 
