@@ -110,6 +110,8 @@ const BookingPage: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('Availability data:', data.data);
+        console.log('Available slots with preferred info:', data.data.availableSlots.filter(slot => slot.isPreferred));
         setAvailabilityData(data.data);
       } else {
         console.error('Failed to fetch availability');

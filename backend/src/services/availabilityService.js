@@ -81,8 +81,11 @@ class AvailabilityService {
         });
       }).map(slot => {
         // Add preferred time information to each available slot
-        const slotTime = slot.startTime; // Format: "HH:MM"
-        const preferredInfo = userSettings.isPreferredTime(dayOfWeek, slotTime);
+        // Convert the slot start time to 24-hour format for comparison
+        const slotTimeHour = slot.start.getHours();
+        const slotTimeMinute = slot.start.getMinutes();
+        const slotTime24h = `${slotTimeHour.toString().padStart(2, '0')}:${slotTimeMinute.toString().padStart(2, '0')}`;
+        const preferredInfo = userSettings.isPreferredTime(dayOfWeek, slotTime24h);
         
         return {
           ...slot,
