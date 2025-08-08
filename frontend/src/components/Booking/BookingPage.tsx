@@ -29,6 +29,8 @@ interface TimeSlot {
   end: string;
   startTime: string;
   endTime: string;
+  isPreferred?: boolean;
+  preferredLabel?: string;
 }
 
 interface AvailabilityData {
@@ -268,7 +270,15 @@ const BookingPage: React.FC = () => {
           {/* Time Slots */}
           {selectedDate && (
             <div className="time-slots">
-              <h4>Available times for {availabilityData?.formattedDate}:</h4>
+              <div className="time-slots-header">
+                <h4>Available times for {availabilityData?.formattedDate}:</h4>
+                <div className="preferred-times-legend">
+                  <span className="legend-item">
+                    <span className="legend-star">⭐</span>
+                    <span className="legend-text">Preferred times</span>
+                  </span>
+                </div>
+              </div>
               {availabilityData ? (
                 availabilityData.availableSlots.length > 0 ? (
                   <div className="slots-grid">
@@ -276,9 +286,15 @@ const BookingPage: React.FC = () => {
                       <button
                         key={index}
                         onClick={() => handleSlotSelect(slot)}
-                        className="slot-btn"
+                        className={`slot-btn ${slot.isPreferred ? 'preferred-slot' : ''}`}
+                        title={slot.isPreferred ? `Preferred time${slot.preferredLabel ? ': ' + slot.preferredLabel : ''}` : undefined}
                       >
-                        {slot.startTime}
+                        <span className="slot-time">{slot.startTime}</span>
+                        {slot.isPreferred && (
+                          <span className="preferred-indicator" aria-label="Preferred time">
+                            ⭐
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>

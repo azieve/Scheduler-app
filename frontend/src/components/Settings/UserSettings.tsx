@@ -3,8 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import TopNav from '../Navigation/TopNav';
 import WorkingHoursSettings from './WorkingHoursSettings';
 import GeneralSettings from './GeneralSettings';
+import PreferredTimesSettings from './PreferredTimesSettings';
 import BlockedTimesSettings from './BlockedTimesSettings';
 import './UserSettings.css';
+
+interface PreferredTimeSlot {
+  start: string;
+  end: string;
+  label?: string;
+}
 
 interface UserSettingsData {
   id?: number;
@@ -15,6 +22,9 @@ interface UserSettingsData {
       start: string;
       end: string;
     };
+  };
+  preferredMeetingTimes?: {
+    [key: string]: PreferredTimeSlot[];
   };
   timezone: string;
   defaultBufferBefore: number;
@@ -143,6 +153,12 @@ const UserSettings: React.FC = () => {
             General Settings
           </button>
           <button 
+            className={`tab-btn ${activeTab === 'preferred-times' ? 'active' : ''}`}
+            onClick={() => setActiveTab('preferred-times')}
+          >
+            Preferred Times
+          </button>
+          <button 
             className={`tab-btn ${activeTab === 'blocked-times' ? 'active' : ''}`}
             onClick={() => setActiveTab('blocked-times')}
           >
@@ -161,6 +177,12 @@ const UserSettings: React.FC = () => {
           {activeTab === 'general' && (
             <GeneralSettings
               settings={settings}
+              onUpdate={updateSettings}
+            />
+          )}
+          {activeTab === 'preferred-times' && (
+            <PreferredTimesSettings
+              preferredMeetingTimes={settings.preferredMeetingTimes}
               onUpdate={updateSettings}
             />
           )}

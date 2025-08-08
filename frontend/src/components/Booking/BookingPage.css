@@ -195,6 +195,71 @@
   color: #4285f4;
 }
 
+.slot-btn.preferred-slot {
+  background: linear-gradient(135deg, #ffd700, #ffed4e);
+  border-color: #f7c600;
+  color: #8b5a00;
+  font-weight: 600;
+  position: relative;
+}
+
+.slot-btn.preferred-slot:hover {
+  background: linear-gradient(135deg, #ffed4e, #fff59d);
+  border-color: #f57c00;
+  color: #8b5a00;
+}
+
+.slot-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.slot-time {
+  flex: 1;
+}
+
+.preferred-indicator {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.time-slots-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.preferred-times-legend {
+  font-size: 14px;
+  color: #6c757d;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legend-star {
+  font-size: 12px;
+}
+
+.legend-text {
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .time-slots-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
 .no-slots {
   color: #6c757d;
   font-style: italic;
