@@ -136,27 +136,6 @@ const Calendars: React.FC = () => {
     }
   };
 
-  // Handle re-authenticate account
-  const handleReauthAccount = async (accountId: number, accountEmail: string) => {
-    try {
-      const response = await fetch(`http://localhost:3001/api/accounts/${accountId}/reauth`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      
-      const data = await response.json();
-      
-      if (data.success && data.data.authorizationUrl) {
-        // Redirect to Google OAuth for re-authentication
-        window.location.href = data.data.authorizationUrl;
-      } else {
-        showMessage('error', 'Failed to initiate re-authentication');
-      }
-    } catch (error) {
-      console.error('Error re-authenticating account:', error);
-      showMessage('error', 'Failed to re-authenticate account');
-    }
-  };
 
   // Handle fetch calendars
   const handleFetchCalendars = async (accountId?: number) => {
@@ -183,6 +162,41 @@ const Calendars: React.FC = () => {
           const accountsNeedingReauth = data.data?.accountsNeedingReauth || 
                                       (accountId ? [data.data?.accountEmail] : []);
           
+          if (accountsNeedingReauth.length > 0 && accountsNeedingReauth.length === 1) {
+            // Single account needs re-auth - find the account and auto-trigger re-authentication
+            const needsReauthEmail = accountsNeedingReauth[0];
+            const accountToReauth = accounts.find(acc => acc.googleEmail === needsReauthEmail);
+            
+            if (accountToReauth) {
+              showMessage('error', `Authentication expired for "${needsReauthEmail}". Redirecting to re-authenticate...`);
+              
+              // Automatically trigger re-authentication after a short delay
+              setTimeout(async () => {
+                try {
+                  const reauthResponse = await fetch(`http://localhost:3001/api/accounts/${accountToReauth.id}/reauth`, {
+                    method: 'POST',
+                    credentials: 'include'
+                  });
+                  
+                  const reauthData = await reauthResponse.json();
+                  
+                  if (reauthData.success && reauthData.data.authorizationUrl) {
+                    // Redirect to Google OAuth for re-authentication
+                    window.location.href = reauthData.data.authorizationUrl;
+                  } else {
+                    showMessage('error', 'Failed to initiate re-authentication');
+                  }
+                } catch (error) {
+                  console.error('Error auto-triggering re-authentication:', error);
+                  showMessage('error', 'Failed to auto-trigger re-authentication. Please try again.');
+                }
+              }, 2000); // 2 second delay to show the message first
+              
+              return; // Exit early, don't show other error messages
+            }
+          }
+          
+          // Fallback for multiple accounts or other cases
           if (accountsNeedingReauth.length > 0) {
             const accountText = accountsNeedingReauth.length === 1 
               ? `account "${accountsNeedingReauth[0]}"` 
@@ -332,14 +346,32 @@ const Calendars: React.FC = () => {
       const email = urlParams.get('email');
       
       if (success === 'account_added' && email) {
-        showMessage('success', `Successfully added Google account: ${decodeURIComponent(email)}`);
+        showMessage('success', `Successfully added Google account: ${decodeURIComponent(email)}. Fetching calendars...`);
         window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Auto-fetch calendars after successful account addition
+        setTimeout(() => {
+          handleFetchCalendars();
+        }, 1000); // Small delay to let the success message show first
+        
       } else if (success === 'account_updated' && email) {
-        showMessage('success', `Successfully updated Google account: ${decodeURIComponent(email)}`);
+        showMessage('success', `Successfully updated Google account: ${decodeURIComponent(email)}. Fetching calendars...`);
         window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Auto-fetch calendars after successful account update
+        setTimeout(() => {
+          handleFetchCalendars();
+        }, 1000);
+        
       } else if (success === 'account_reauth' && email) {
-        showMessage('success', `Successfully re-authenticated Google account: ${decodeURIComponent(email)}`);
+        showMessage('success', `Successfully re-authenticated Google account: ${decodeURIComponent(email)}. Fetching calendars...`);
         window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Auto-fetch calendars after successful re-authentication
+        setTimeout(() => {
+          handleFetchCalendars();
+        }, 1000);
+        
       } else if (error) {
         const errorMessages: { [key: string]: string } = {
           'oauth_failed': 'Google authentication failed. Please try again.',
@@ -442,13 +474,6 @@ const Calendars: React.FC = () => {
                       disabled={fetching}
                     >
                       {fetching ? 'Fetching...' : 'Fetch Calendars'}
-                    </button>
-                    <button
-                      className="btn btn-sm btn-warning"
-                      onClick={() => handleReauthAccount(account.id, account.googleEmail)}
-                      title="Re-authenticate this account to refresh OAuth permissions"
-                    >
-                      Re-authenticate
                     </button>
                     {!account.isPrimary && (
                       <button
