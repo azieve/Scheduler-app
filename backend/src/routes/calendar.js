@@ -21,16 +21,31 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// Get user's calendars
+// Get user's calendars (DEPRECATED - use /api/calendars instead)
 router.get('/calendars', authenticateToken, async (req, res) => {
   try {
-    const calendars = await calendarService.getUserCalendars(req.user.id);
+    console.log('⚠️  DEPRECATED: /api/calendar/calendars endpoint called. Use /api/calendars instead.');
+    
+    const Calendar = require('../models/Calendar');
+    const calendars = await Calendar.findByUserId(req.user.id, req.query.activeOnly === 'true');
+    
+    // Transform to old format for backward compatibility
+    const transformedCalendars = calendars.map(cal => ({
+      id: cal.googleCalendarId,
+      summary: cal.calendarName,
+      primary: cal.isPrimary,
+      description: cal.calendarDescription,
+      backgroundColor: cal.backgroundColor,
+      foregroundColor: cal.foregroundColor,
+      accessRole: cal.accessRole,
+      timeZone: cal.timezone
+    }));
     
     res.json({
       success: true,
       data: {
-        calendars,
-        count: calendars.length
+        calendars: transformedCalendars,
+        count: transformedCalendars.length
       }
     });
   } catch (error) {

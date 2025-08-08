@@ -166,10 +166,18 @@ router.post('/:username/:slug', async (req, res) => {
           reminders: eventDetails.reminders
         };
 
+        // Get the primary calendar for event creation using the new system
+        const Calendar = require('../models/Calendar');
+        const primaryCalendar = await Calendar.findPrimaryByUserId(user.id);
+        
+        if (!primaryCalendar) {
+          throw new Error('No primary calendar found. Please set up your calendars.');
+        }
+        
         // Use the enhanced createEvent method
         const createdEvent = await calendarService.createEvent(
           user.id,
-          'primary',
+          primaryCalendar.googleCalendarId,
           event,
           meetingType
         );

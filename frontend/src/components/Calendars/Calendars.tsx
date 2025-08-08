@@ -36,7 +36,7 @@ const Calendars: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
+  const [fetching, setFetching] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -136,10 +136,32 @@ const Calendars: React.FC = () => {
     }
   };
 
-  // Handle sync calendars
-  const handleSyncCalendars = async (accountId?: number) => {
+  // Handle re-authenticate account
+  const handleReauthAccount = async (accountId: number, accountEmail: string) => {
     try {
-      setSyncing(true);
+      const response = await fetch(`http://localhost:3001/api/accounts/${accountId}/reauth`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.data.authorizationUrl) {
+        // Redirect to Google OAuth for re-authentication
+        window.location.href = data.data.authorizationUrl;
+      } else {
+        showMessage('error', 'Failed to initiate re-authentication');
+      }
+    } catch (error) {
+      console.error('Error re-authenticating account:', error);
+      showMessage('error', 'Failed to re-authenticate account');
+    }
+  };
+
+  // Handle fetch calendars
+  const handleFetchCalendars = async (accountId?: number) => {
+    try {
+      setFetching(true);
       
       const url = accountId 
         ? `http://localhost:3001/api/calendars/sync/${accountId}` 
@@ -156,13 +178,29 @@ const Calendars: React.FC = () => {
         showMessage('success', data.message);
         await fetchData(); // Refresh data
       } else {
-        showMessage('error', data.error || 'Failed to sync calendars');
+        // Handle authentication errors
+        if (response.status === 401 && data.needsReauth) {
+          const accountsNeedingReauth = data.data?.accountsNeedingReauth || 
+                                      (accountId ? [data.data?.accountEmail] : []);
+          
+          if (accountsNeedingReauth.length > 0) {
+            const accountText = accountsNeedingReauth.length === 1 
+              ? `account "${accountsNeedingReauth[0]}"` 
+              : `${accountsNeedingReauth.length} accounts`;
+            
+            showMessage('error', `Authentication failed for ${accountText}. Please re-add the account(s) to refresh permissions.`);
+          } else {
+            showMessage('error', data.error || 'Authentication failed - please re-add your account');
+          }
+        } else {
+          showMessage('error', data.error || 'Failed to fetch calendars');
+        }
       }
     } catch (error) {
-      console.error('Error syncing calendars:', error);
-      showMessage('error', 'Failed to sync calendars');
+      console.error('Error fetching calendars:', error);
+      showMessage('error', 'Failed to fetch calendars');
     } finally {
-      setSyncing(false);
+      setFetching(false);
     }
   };
 
@@ -299,6 +337,9 @@ const Calendars: React.FC = () => {
       } else if (success === 'account_updated' && email) {
         showMessage('success', `Successfully updated Google account: ${decodeURIComponent(email)}`);
         window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (success === 'account_reauth' && email) {
+        showMessage('success', `Successfully re-authenticated Google account: ${decodeURIComponent(email)}`);
+        window.history.replaceState({}, document.title, window.location.pathname);
       } else if (error) {
         const errorMessages: { [key: string]: string } = {
           'oauth_failed': 'Google authentication failed. Please try again.',
@@ -346,10 +387,10 @@ const Calendars: React.FC = () => {
           <div className="calendars-actions">
             <button 
               className="btn btn-primary"
-              onClick={() => handleSyncCalendars()}
-              disabled={syncing}
+              onClick={() => handleFetchCalendars()}
+              disabled={fetching}
             >
-              {syncing ? 'Syncing...' : 'Sync All Calendars'}
+              {fetching ? 'Fetching...' : 'Fetch All Calendars'}
             </button>
             <button 
               className="btn btn-secondary"
@@ -397,10 +438,17 @@ const Calendars: React.FC = () => {
                   <div className="account-actions">
                     <button
                       className="btn btn-sm btn-secondary"
-                      onClick={() => handleSyncCalendars(account.id)}
-                      disabled={syncing}
+                      onClick={() => handleFetchCalendars(account.id)}
+                      disabled={fetching}
                     >
-                      {syncing ? 'Syncing...' : 'Sync'}
+                      {fetching ? 'Fetching...' : 'Fetch Calendars'}
+                    </button>
+                    <button
+                      className="btn btn-sm btn-warning"
+                      onClick={() => handleReauthAccount(account.id, account.googleEmail)}
+                      title="Re-authenticate this account to refresh OAuth permissions"
+                    >
+                      Re-authenticate
                     </button>
                     {!account.isPrimary && (
                       <button
@@ -466,10 +514,10 @@ const Calendars: React.FC = () => {
                     <p>No calendars found for this account.</p>
                     <button
                       className="btn btn-sm btn-secondary"
-                      onClick={() => handleSyncCalendars(account.id)}
-                      disabled={syncing}
+                      onClick={() => handleFetchCalendars(account.id)}
+                      disabled={fetching}
                     >
-                      {syncing ? 'Syncing...' : 'Sync Calendars'}
+                      {fetching ? 'Fetching...' : 'Fetch Calendars'}
                     </button>
                   </div>
                 )}
@@ -485,7 +533,7 @@ const Calendars: React.FC = () => {
             <li><strong>Secondary Accounts:</strong> Additional Google accounts for work, personal, etc.</li>
             <li><strong>Primary Calendar:</strong> The calendar where new meetings will be created</li>
             <li><strong>Active Calendars:</strong> Calendars checked for conflicts when scheduling</li>
-            <li><strong>Sync:</strong> Updates calendar list from your Google accounts</li>
+            <li><strong>Fetch Calendars:</strong> Retrieves the latest calendar list from your Google accounts</li>
           </ul>
         </div>
       </div>

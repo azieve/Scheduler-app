@@ -75,7 +75,7 @@ const Dashboard: React.FC = () => {
   const fetchCalendars = async () => {
     try {
       setLoadingCalendars(true);
-      const response = await fetch('http://localhost:3001/api/calendar/calendars', {
+      const response = await fetch('http://localhost:3001/api/calendars', {
         credentials: 'include'
       });
 
@@ -84,9 +84,15 @@ const Dashboard: React.FC = () => {
         setCalendars(data.data.calendars);
         
         // Auto-load events from primary calendar
-        const primaryCalendar = data.data.calendars.find((cal: any) => cal.primary);
+        const primaryCalendar = data.data.calendars.find((cal: any) => cal.isPrimary && cal.isActive);
         if (primaryCalendar) {
-          fetchEvents(primaryCalendar.id);
+          fetchEvents(primaryCalendar.googleCalendarId || 'primary');
+        } else {
+          // Fallback to any active calendar
+          const anyActiveCalendar = data.data.calendars.find((cal: any) => cal.isActive);
+          if (anyActiveCalendar) {
+            fetchEvents(anyActiveCalendar.googleCalendarId || 'primary');
+          }
         }
       } else {
         console.error('Failed to fetch calendars');
@@ -194,9 +200,14 @@ const Dashboard: React.FC = () => {
               <div className="calendar-list">
                 {calendars.map((cal: any) => (
                   <div key={cal.id} className="calendar-item">
+                    <div 
+                      className="calendar-color" 
+                      style={{ backgroundColor: cal.backgroundColor || '#4285f4' }}
+                    />
                     <div className="calendar-info">
-                      <span className="calendar-name">{cal.summary}</span>
-                      {cal.primary && <span className="primary-badge">Primary</span>}
+                      <span className="calendar-name">{cal.calendarName}</span>
+                      {cal.isPrimary && <span className="primary-badge">Primary</span>}
+                      {!cal.isActive && <span className="inactive-badge">Inactive</span>}
                     </div>
                   </div>
                 ))}

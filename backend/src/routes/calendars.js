@@ -4,6 +4,7 @@ const Calendar = require('../models/Calendar');
 const Account = require('../models/Account');
 const jwt = require('jsonwebtoken');
 const { google } = require('googleapis');
+const { ensureValidTokens, getValidOAuth2Client } = require('../utils/tokenRefresh');
 
 // Middleware to authenticate JWT token
 function authenticateToken(req, res, next) {
@@ -307,7 +308,7 @@ router.delete('/:id', async (req, res) => {
 // ==============================================================================
 
 /**
- * POST /api/calendars/sync - Sync all calendars for user
+ * POST /api/calendars/sync - Fetch calendars from all accounts
  */
 router.post('/sync', async (req, res) => {
   try {
@@ -324,90 +325,125 @@ router.post('/sync', async (req, res) => {
     }
     
     let syncResults = [];
-    let totalSynced = 0;
+    let totalFetched = 0;
     let errors = [];
+    let accountsNeedingReauth = [];
     
-    // Sync calendars for each account
+    // Fetch calendars for each account
     for (const account of accounts) {
       try {
-        console.log(`🔄 Syncing calendars for account: ${account.googleEmail}`);
+        console.log(`📥 Fetching calendars for account: ${account.googleEmail}`);
         
-        // Setup OAuth2 client with account credentials
-        const oauth2Client = new google.auth.OAuth2(
-          process.env.GOOGLE_CLIENT_ID,
-          process.env.GOOGLE_CLIENT_SECRET
-        );
+        // Ensure account has valid tokens
+        const tokenResult = await getValidOAuth2Client(account);
         
-        oauth2Client.setCredentials({
-          access_token: account.googleAccessToken,
-          refresh_token: account.googleRefreshToken
-        });
+        if (!tokenResult.success) {
+          console.error(`❌ Token validation failed for ${account.googleEmail}: ${tokenResult.error}`);
+          
+          syncResults.push({
+            accountEmail: account.googleEmail,
+            calendarsFound: 0,
+            calendarsFetched: 0,
+            success: false,
+            needsReauth: tokenResult.needsReauth,
+            error: tokenResult.error
+          });
+          
+          if (tokenResult.needsReauth) {
+            accountsNeedingReauth.push(account.googleEmail);
+          }
+          
+          errors.push(`Account "${account.googleEmail}": ${tokenResult.error}`);
+          continue;
+        }
         
-        // Get calendar list from Google
-        const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+        // Get calendar list from Google using validated OAuth client
+        const calendar = google.calendar({ version: 'v3', auth: tokenResult.oauth2Client });
         const response = await calendar.calendarList.list();
         
         const googleCalendars = response.data.items || [];
         console.log(`📅 Found ${googleCalendars.length} calendars for ${account.googleEmail}`);
         
-        let accountSynced = 0;
+        let accountFetched = 0;
         
         // Create or update each calendar
         for (const googleCalendar of googleCalendars) {
           try {
-            await Calendar.createOrUpdateFromGoogle(account.id, userId, googleCalendar);
-            accountSynced++;
-            totalSynced++;
+            const result = await Calendar.createOrUpdateFromGoogle(account.id, userId, googleCalendar, true); // Allow reinstating deleted calendars
+            if (result !== null) { // null means calendar was skipped (though now less likely)
+              accountFetched++;
+              totalFetched++;
+            }
           } catch (calError) {
-            console.error(`Error syncing calendar ${googleCalendar.summary}:`, calError);
-            errors.push(`Failed to sync calendar "${googleCalendar.summary}": ${calError.message}`);
+            console.error(`Error processing calendar ${googleCalendar.summary}:`, calError);
+            errors.push(`Failed to process calendar "${googleCalendar.summary}": ${calError.message}`);
           }
         }
         
         syncResults.push({
           accountEmail: account.googleEmail,
           calendarsFound: googleCalendars.length,
-          calendarsSynced: accountSynced,
+          calendarsFetched: accountFetched,
           success: true
         });
         
       } catch (accountError) {
-        console.error(`Error syncing account ${account.googleEmail}:`, accountError);
+        console.error(`Error fetching from account ${account.googleEmail}:`, accountError);
+        
+        // Check if it's an authentication error
+        const isAuthError = accountError.code === 401 || 
+                           accountError.code === 403 ||
+                           accountError.message.includes('authentication') ||
+                           accountError.message.includes('credentials');
+        
         syncResults.push({
           accountEmail: account.googleEmail,
           calendarsFound: 0,
-          calendarsSynced: 0,
+          calendarsFetched: 0,
           success: false,
+          needsReauth: isAuthError,
           error: accountError.message
         });
-        errors.push(`Failed to sync account "${account.googleEmail}": ${accountError.message}`);
+        
+        if (isAuthError) {
+          accountsNeedingReauth.push(account.googleEmail);
+        }
+        
+        errors.push(`Failed to fetch from account "${account.googleEmail}": ${accountError.message}`);
       }
     }
     
-    console.log(`✅ Calendar sync complete. Total synced: ${totalSynced}`);
+    console.log(`✅ Calendar fetch complete. Total fetched: ${totalFetched}`);
+    
+    // Prepare response message
+    let message = `Successfully fetched ${totalFetched} calendars from ${accounts.length} account(s)`;
+    if (accountsNeedingReauth.length > 0) {
+      message += `. Note: ${accountsNeedingReauth.length} account(s) need re-authentication.`;
+    }
     
     res.json({
       success: true,
       data: {
         totalAccountsProcessed: accounts.length,
-        totalCalendarsSynced: totalSynced,
+        totalCalendarsFetched: totalFetched,
+        accountsNeedingReauth: accountsNeedingReauth,
         syncResults,
         errors: errors.length > 0 ? errors : undefined
       },
-      message: `Successfully synced ${totalSynced} calendars from ${accounts.length} account(s)`
+      message: message
     });
     
   } catch (error) {
-    console.error('Error during calendar sync:', error);
+    console.error('Error during calendar fetch:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to sync calendars'
+      error: 'Failed to fetch calendars'
     });
   }
 });
 
 /**
- * POST /api/calendars/sync/:accountId - Sync calendars for specific account
+ * POST /api/calendars/sync/:accountId - Fetch calendars for specific account
  */
 router.post('/sync/:accountId', async (req, res) => {
   try {
@@ -433,62 +469,97 @@ router.post('/sync/:accountId', async (req, res) => {
     if (!account.isActive) {
       return res.status(400).json({
         success: false,
-        error: 'Cannot sync calendars for inactive account'
+        error: 'Cannot fetch calendars for inactive account'
       });
     }
     
-    console.log(`🔄 Syncing calendars for specific account: ${account.googleEmail}`);
+    console.log(`📥 Fetching calendars for specific account: ${account.googleEmail}`);
     
-    // Setup OAuth2 client with account credentials
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET
-    );
+    // Ensure account has valid tokens
+    const tokenResult = await getValidOAuth2Client(account);
     
-    oauth2Client.setCredentials({
-      access_token: account.googleAccessToken,
-      refresh_token: account.googleRefreshToken
-    });
-    
-    // Get calendar list from Google
-    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-    const response = await calendar.calendarList.list();
-    
-    const googleCalendars = response.data.items || [];
-    console.log(`📅 Found ${googleCalendars.length} calendars for ${account.googleEmail}`);
-    
-    let syncedCount = 0;
-    let errors = [];
-    
-    // Create or update each calendar
-    for (const googleCalendar of googleCalendars) {
-      try {
-        await Calendar.createOrUpdateFromGoogle(account.id, userId, googleCalendar);
-        syncedCount++;
-      } catch (calError) {
-        console.error(`Error syncing calendar ${googleCalendar.summary}:`, calError);
-        errors.push(`Failed to sync calendar "${googleCalendar.summary}": ${calError.message}`);
-      }
+    if (!tokenResult.success) {
+      console.error(`❌ Token validation failed for ${account.googleEmail}: ${tokenResult.error}`);
+      
+      return res.status(401).json({
+        success: false,
+        error: tokenResult.error,
+        needsReauth: tokenResult.needsReauth,
+        data: {
+          accountEmail: account.googleEmail,
+          calendarsFound: 0,
+          calendarsFetched: 0
+        }
+      });
     }
     
-    console.log(`✅ Account calendar sync complete. Synced: ${syncedCount}/${googleCalendars.length}`);
-    
-    res.json({
-      success: true,
-      data: {
-        accountEmail: account.googleEmail,
-        calendarsFound: googleCalendars.length,
-        calendarsSynced: syncedCount,
-        errors: errors.length > 0 ? errors : undefined
-      },
-      message: `Successfully synced ${syncedCount} calendars for account "${account.googleEmail}"`
-    });
+    try {
+      // Get calendar list from Google using validated OAuth client
+      const calendar = google.calendar({ version: 'v3', auth: tokenResult.oauth2Client });
+      const response = await calendar.calendarList.list();
+      
+      const googleCalendars = response.data.items || [];
+      console.log(`📅 Found ${googleCalendars.length} calendars for ${account.googleEmail}`);
+      
+      let fetchedCount = 0;
+      let errors = [];
+      
+      // Create or update each calendar
+      for (const googleCalendar of googleCalendars) {
+        try {
+          const result = await Calendar.createOrUpdateFromGoogle(account.id, userId, googleCalendar, true); // Allow reinstating deleted calendars
+          if (result !== null) { // null means calendar was skipped (though now less likely)
+            fetchedCount++;
+          }
+        } catch (calError) {
+          console.error(`Error processing calendar ${googleCalendar.summary}:`, calError);
+          errors.push(`Failed to process calendar "${googleCalendar.summary}": ${calError.message}`);
+        }
+      }
+      
+      console.log(`✅ Account calendar fetch complete. Fetched: ${fetchedCount}/${googleCalendars.length}`);
+      
+      res.json({
+        success: true,
+        data: {
+          accountEmail: account.googleEmail,
+          calendarsFound: googleCalendars.length,
+          calendarsFetched: fetchedCount,
+          errors: errors.length > 0 ? errors : undefined
+        },
+        message: `Successfully fetched ${fetchedCount} calendars for account "${account.googleEmail}"`
+      });
+      
+    } catch (apiError) {
+      console.error(`Error fetching from account ${account.googleEmail}:`, apiError);
+      
+      // Check if it's an authentication error
+      const isAuthError = apiError.code === 401 || 
+                         apiError.code === 403 ||
+                         apiError.message.includes('authentication') ||
+                         apiError.message.includes('credentials');
+      
+      if (isAuthError) {
+        return res.status(401).json({
+          success: false,
+          error: 'Authentication failed - re-authentication required',
+          needsReauth: true,
+          data: {
+            accountEmail: account.googleEmail,
+            calendarsFound: 0,
+            calendarsFetched: 0
+          }
+        });
+      }
+      
+      throw apiError; // Re-throw non-auth errors to be caught by outer catch
+    }
     
   } catch (error) {
-    console.error('Error syncing account calendars:', error);
+    console.error('Error fetching account calendars:', error);
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to sync account calendars'
+      error: error.message || 'Failed to fetch account calendars'
     });
   }
 });

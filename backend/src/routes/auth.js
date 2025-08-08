@@ -28,41 +28,69 @@ router.get('/google/callback',
       if (state) {
         try {
           accountContext = JSON.parse(state);
-          isAccountAddition = accountContext.action === 'add_account';
+          isAccountAddition = accountContext.action === 'add_account' || accountContext.action === 'reauth_account';
         } catch (error) {
           console.log('Could not parse state parameter, treating as regular login');
         }
       }
       
       if (isAccountAddition && accountContext) {
-        // Handle account addition
-        console.log('🔗 Processing account addition for user:', accountContext.userId);
-        
         const Account = require('../models/Account');
         
-        // Check if this account is already connected to the user
-        const existingAccount = await Account.findByGoogleEmail(accountContext.userId, req.user.email);
-        if (existingAccount) {
-          console.log('Account already exists, updating tokens');
+        if (accountContext.action === 'reauth_account') {
+          // Handle account re-authentication
+          console.log('🔄 Processing account re-authentication for account ID:', accountContext.accountId);
+          
+          const existingAccount = await Account.findById(accountContext.accountId);
+          if (!existingAccount) {
+            console.error('Account not found for re-authentication');
+            return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/calendars?error=account_not_found`);
+          }
+          
+          if (existingAccount.userId !== accountContext.userId) {
+            console.error('Account ownership mismatch');
+            return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/calendars?error=access_denied`);
+          }
+          
+          // Verify the re-authenticated email matches the account
+          if (existingAccount.googleEmail !== req.user.email) {
+            console.error(`Re-authentication email mismatch: expected ${existingAccount.googleEmail}, got ${req.user.email}`);
+            return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/calendars?error=email_mismatch`);
+          }
+          
+          // Update tokens for the existing account
           await existingAccount.updateTokens(req.user.googleAccessToken, req.user.googleRefreshToken);
-          return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/calendars?success=account_updated&email=${encodeURIComponent(req.user.email)}`);
+          console.log(`✅ Re-authenticated account: ${req.user.email}`);
+          return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/calendars?success=account_reauth&email=${encodeURIComponent(req.user.email)}`);
+          
+        } else if (accountContext.action === 'add_account') {
+          // Handle account addition
+          console.log('🔗 Processing account addition for user:', accountContext.userId);
+          
+          // Check if this account is already connected to the user
+          const existingAccount = await Account.findByGoogleEmail(accountContext.userId, req.user.email);
+          if (existingAccount) {
+            console.log('Account already exists, updating tokens');
+            await existingAccount.updateTokens(req.user.googleAccessToken, req.user.googleRefreshToken);
+            return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/calendars?success=account_updated&email=${encodeURIComponent(req.user.email)}`);
+          }
+          
+          // Create new secondary account
+          const newAccount = await Account.create({
+            userId: accountContext.userId,
+            googleId: req.user.googleId,
+            googleEmail: req.user.email,
+            displayName: `${req.user.firstName} ${req.user.lastName}`.trim(),
+            googleAccessToken: req.user.googleAccessToken,
+            googleRefreshToken: req.user.googleRefreshToken,
+            accountType: accountContext.accountType || 'personal',
+            isPrimary: false, // Secondary accounts are never primary
+            isActive: true
+          });
+          
+          console.log(`✅ Added secondary account: ${req.user.email}`);
+          return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/calendars?success=account_added&email=${encodeURIComponent(req.user.email)}`);
         }
-        
-        // Create new secondary account
-        const newAccount = await Account.create({
-          userId: accountContext.userId,
-          googleId: req.user.googleId,
-          googleEmail: req.user.email,
-          displayName: `${req.user.firstName} ${req.user.lastName}`.trim(),
-          googleAccessToken: req.user.googleAccessToken,
-          googleRefreshToken: req.user.googleRefreshToken,
-          accountType: accountContext.accountType || 'personal',
-          isPrimary: false, // Secondary accounts are never primary
-          isActive: true
-        });
-        
-        console.log(`✅ Added secondary account: ${req.user.email}`);
-        return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/calendars?success=account_added&email=${encodeURIComponent(req.user.email)}`);
       }
       
       // Regular login flow
@@ -117,20 +145,22 @@ router.post('/logout', (req, res) => {
   res.json({ message: 'Logged out successfully' });
 });
 
-// Test calendar access (using new calendar service)
+// Test calendar access (using new calendar system)
 router.get('/calendar/test', authenticateToken, async (req, res) => {
   try {
-    const calendarService = require('../services/calendarService');
+    const Calendar = require('../models/Calendar');
     
-    // Get user's calendars using the new service
-    const calendars = await calendarService.getUserCalendars(req.user.id);
+    // Get user's calendars using the new system
+    const calendars = await Calendar.findByUserId(req.user.id, true); // active only
     
     res.json({
       message: 'Calendar access successful',
       calendars: calendars.map(cal => ({
-        id: cal.id,
-        summary: cal.summary,
-        primary: cal.primary
+        id: cal.googleCalendarId,
+        summary: cal.calendarName,
+        primary: cal.isPrimary,
+        active: cal.isActive,
+        accountEmail: cal.accountEmail
       })),
       count: calendars.length
     });
