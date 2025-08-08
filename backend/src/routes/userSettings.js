@@ -46,6 +46,7 @@ router.put('/', authenticateToken, async (req, res) => {
   try {
     const {
       workingHours,
+      preferredMeetingTimes,
       timezone,
       defaultBufferBefore,
       defaultBufferAfter,
@@ -59,6 +60,7 @@ router.put('/', authenticateToken, async (req, res) => {
     
     const updateData = {};
     if (workingHours !== undefined) updateData.working_hours = workingHours;
+    if (preferredMeetingTimes !== undefined) updateData.preferred_meeting_times = preferredMeetingTimes;
     if (timezone !== undefined) updateData.timezone = timezone;
     if (defaultBufferBefore !== undefined) updateData.default_buffer_before = defaultBufferBefore;
     if (defaultBufferAfter !== undefined) updateData.default_buffer_after = defaultBufferAfter;
@@ -252,6 +254,132 @@ router.delete('/blocked-times/:id', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to delete blocked time',
+      message: error.message
+    });
+  }
+});
+
+// ==============================================================================
+// PREFERRED MEETING TIMES ENDPOINTS
+// ==============================================================================
+
+// Get preferred meeting times
+router.get('/preferred-times', authenticateToken, async (req, res) => {
+  try {
+    const settings = await UserSettings.findByUserId(req.user.id);
+    
+    res.json({
+      success: true,
+      data: {
+        preferredMeetingTimes: settings.preferredMeetingTimes || {}
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching preferred meeting times:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch preferred meeting times',
+      message: error.message
+    });
+  }
+});
+
+// Update preferred meeting times
+router.put('/preferred-times', authenticateToken, async (req, res) => {
+  try {
+    const { preferredMeetingTimes } = req.body;
+    
+    // Validate the structure
+    if (!preferredMeetingTimes || typeof preferredMeetingTimes !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'preferredMeetingTimes must be an object'
+      });
+    }
+    
+    // Validate each day's structure
+    const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    for (const [day, times] of Object.entries(preferredMeetingTimes)) {
+      if (!validDays.includes(day)) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid day: ${day}. Must be one of: ${validDays.join(', ')}`
+        });
+      }
+      
+      if (!Array.isArray(times)) {
+        return res.status(400).json({
+          success: false,
+          error: `Times for ${day} must be an array`
+        });
+      }
+      
+      // Validate each time slot
+      for (const timeSlot of times) {
+        if (!timeSlot.start || !timeSlot.end) {
+          return res.status(400).json({
+            success: false,
+            error: `Each time slot must have start and end times`
+          });
+        }
+        
+        // Basic time format validation (HH:MM)
+        const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+        if (!timeRegex.test(timeSlot.start) || !timeRegex.test(timeSlot.end)) {
+          return res.status(400).json({
+            success: false,
+            error: `Time must be in HH:MM format (${timeSlot.start} - ${timeSlot.end})`
+          });
+        }
+      }
+    }
+    
+    const settings = await UserSettings.findByUserId(req.user.id);
+    const updatedSettings = await settings.update({
+      preferred_meeting_times: preferredMeetingTimes
+    });
+    
+    res.json({
+      success: true,
+      data: {
+        preferredMeetingTimes: updatedSettings.preferredMeetingTimes
+      },
+      message: 'Preferred meeting times updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating preferred meeting times:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update preferred meeting times',
+      message: error.message
+    });
+  }
+});
+
+// Check if a specific time is preferred (utility endpoint for booking page)
+router.post('/preferred-times/check', authenticateToken, async (req, res) => {
+  try {
+    const { dayOfWeek, timeSlot } = req.body;
+    
+    if (dayOfWeek === undefined || !timeSlot) {
+      return res.status(400).json({
+        success: false,
+        error: 'dayOfWeek (0-6) and timeSlot (HH:MM) are required'
+      });
+    }
+    
+    const settings = await UserSettings.findByUserId(req.user.id);
+    const preferredInfo = settings.isPreferredTime(dayOfWeek, timeSlot);
+    
+    res.json({
+      success: true,
+      data: preferredInfo
+    });
+  } catch (error) {
+    console.error('Error checking preferred time:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check preferred time',
       message: error.message
     });
   }

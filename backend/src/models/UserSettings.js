@@ -5,6 +5,7 @@ class UserSettings {
     this.id = data.id;
     this.userId = data.user_id;
     this.workingHours = data.working_hours;
+    this.preferredMeetingTimes = data.preferred_meeting_times;
     this.timezone = data.timezone;
     this.defaultBufferBefore = data.default_buffer_before;
     this.defaultBufferAfter = data.default_buffer_after;
@@ -55,7 +56,7 @@ class UserSettings {
   async update(updateData) {
     try {
       const allowedFields = [
-        'working_hours', 'timezone', 'default_buffer_before', 
+        'working_hours', 'preferred_meeting_times', 'timezone', 'default_buffer_before', 
         'default_buffer_after', 'minimum_notice_minutes', 'max_advance_days',
         'allow_back_to_back_bookings', 'auto_confirm_bookings'
       ];
@@ -101,6 +102,7 @@ class UserSettings {
       id: row.id,
       userId: row.user_id,
       workingHours: row.working_hours,
+      preferredMeetingTimes: row.preferred_meeting_times,
       timezone: row.timezone,
       defaultBufferBefore: row.default_buffer_before,
       defaultBufferAfter: row.default_buffer_after,
@@ -150,12 +152,74 @@ class UserSettings {
     return new Date(now.getTime() + (this.maxAdvanceDays * 24 * 60 * 60 * 1000));
   }
 
+  // Get preferred meeting times for a specific day
+  getPreferredMeetingTimesForDay(dayOfWeek) {
+    const day = this.getDayName(dayOfWeek);
+    return this.preferredMeetingTimes?.[day] || [];
+  }
+
+  // Check if a time slot is within preferred meeting times
+  isPreferredTime(dayOfWeek, timeSlot) {
+    const preferredTimes = this.getPreferredMeetingTimesForDay(dayOfWeek);
+    
+    for (const preferred of preferredTimes) {
+      const slotTime = timeSlot.split(':').map(Number);
+      const slotMinutes = slotTime[0] * 60 + slotTime[1];
+      
+      const startTime = preferred.start.split(':').map(Number);
+      const startMinutes = startTime[0] * 60 + startTime[1];
+      
+      const endTime = preferred.end.split(':').map(Number);
+      const endMinutes = endTime[0] * 60 + endTime[1];
+      
+      if (slotMinutes >= startMinutes && slotMinutes < endMinutes) {
+        return { 
+          isPreferred: true, 
+          label: preferred.label || 'Preferred Time'
+        };
+      }
+    }
+    
+    return { isPreferred: false };
+  }
+
+  // Add or update a preferred meeting time slot
+  addPreferredMeetingTime(dayOfWeek, start, end, label = null) {
+    const day = this.getDayName(dayOfWeek);
+    
+    if (!this.preferredMeetingTimes) {
+      this.preferredMeetingTimes = {};
+    }
+    
+    if (!this.preferredMeetingTimes[day]) {
+      this.preferredMeetingTimes[day] = [];
+    }
+    
+    this.preferredMeetingTimes[day].push({
+      start,
+      end,
+      label
+    });
+  }
+
+  // Remove a preferred meeting time slot
+  removePreferredMeetingTime(dayOfWeek, start, end) {
+    const day = this.getDayName(dayOfWeek);
+    
+    if (this.preferredMeetingTimes?.[day]) {
+      this.preferredMeetingTimes[day] = this.preferredMeetingTimes[day].filter(
+        slot => !(slot.start === start && slot.end === end)
+      );
+    }
+  }
+
   // Convert to JSON
   toJSON() {
     return {
       id: this.id,
       userId: this.userId,
       workingHours: this.workingHours,
+      preferredMeetingTimes: this.preferredMeetingTimes,
       timezone: this.timezone,
       defaultBufferBefore: this.defaultBufferBefore,
       defaultBufferAfter: this.defaultBufferAfter,

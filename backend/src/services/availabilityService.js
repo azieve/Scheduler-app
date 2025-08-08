@@ -59,7 +59,7 @@ class AvailabilityService {
         ...blockedTimes.map(bt => ({ start: bt.startTime, end: bt.endTime }))
       ];
 
-      // Filter out busy times and blocked times
+      // Filter out busy times and blocked times, and add preferred time information
       const availableSlots = allSlots.filter(slot => {
         const slotStart = new Date(slot.start);
         const slotEnd = new Date(slot.end);
@@ -79,6 +79,16 @@ class AvailabilityService {
           // Check for overlap including buffer times
           return (bufferStart < blockedEnd && bufferEnd > blockedStart);
         });
+      }).map(slot => {
+        // Add preferred time information to each available slot
+        const slotTime = slot.startTime; // Format: "HH:MM"
+        const preferredInfo = userSettings.isPreferredTime(dayOfWeek, slotTime);
+        
+        return {
+          ...slot,
+          isPreferred: preferredInfo.isPreferred,
+          preferredLabel: preferredInfo.label
+        };
       });
 
       return availableSlots;
